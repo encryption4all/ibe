@@ -150,11 +150,11 @@ fn criterion_kiltz_vahlis_one_benchmark(criterion: &mut Criterion) {
         let mut rng = rand::thread_rng();
         b.iter(|| extract_usk(black_box(&pk), black_box(&sk), black_box(&kid), &mut rng))
     });
-    criterion.bench_function("kiltz_vahlis_one encrypt", move |b| {
+    criterion.bench_function("kiltz_vahlis_one encaps", move |b| {
         let mut rng = rand::thread_rng();
         b.iter(|| encaps(black_box(&pk), black_box(&kid), &mut rng))
     });
-    criterion.bench_function("kiltz_vahlis_one decrypt", move |b| {
+    criterion.bench_function("kiltz_vahlis_one decaps", move |b| {
         b.iter(|| decaps(black_box(&usk), black_box(&c)))
     });
 }
@@ -214,18 +214,15 @@ fn criterion_boyen_waters_benchmark(criterion: &mut Criterion) {
         let mut rng = rand::thread_rng();
         b.iter(|| setup(&mut rng))
     });
-    criterion.bench_function("boyen_waters derive", move |b| {
-        b.iter(|| Identity::derive(id))
-    });
     criterion.bench_function("boyen_waters extract", move |b| {
         let mut rng = rand::thread_rng();
         b.iter(|| extract_usk(black_box(&pk), black_box(&sk), black_box(&kid), &mut rng))
     });
-    criterion.bench_function("boyen_waters encrypt", move |b| {
+    criterion.bench_function("boyen_waters encaps", move |b| {
         let mut rng = rand::thread_rng();
         b.iter(|| encaps(black_box(&pk), black_box(&kid), &mut rng))
     });
-    criterion.bench_function("boyen_waters decrypt", move |b| {
+    criterion.bench_function("boyen_waters decaps", move |b| {
         b.iter(|| decaps(black_box(&usk), black_box(&c)))
     });
 }
