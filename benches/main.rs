@@ -205,7 +205,7 @@ fn criterion_boyen_waters_benchmark(criterion: &mut Criterion) {
     let usk = extract_usk(&pk, &sk, &kid, &mut rng);
     let ppk = pk.to_bytes();
 
-    let (c, _k) = encrypt(&pk, &kid, &mut rng);
+    let (c, _k) = encaps(&pk, &kid, &mut rng);
 
     criterion.bench_function("boyen_waters unpack_pk", |b| {
         b.iter(|| PublicKey::from_bytes(&ppk))
@@ -223,10 +223,10 @@ fn criterion_boyen_waters_benchmark(criterion: &mut Criterion) {
     });
     criterion.bench_function("boyen_waters encrypt", move |b| {
         let mut rng = rand::thread_rng();
-        b.iter(|| encrypt(black_box(&pk), black_box(&kid), &mut rng))
+        b.iter(|| encaps(black_box(&pk), black_box(&kid), &mut rng))
     });
     criterion.bench_function("boyen_waters decrypt", move |b| {
-        b.iter(|| decrypt(black_box(&usk), black_box(&c)))
+        b.iter(|| decaps(black_box(&usk), black_box(&c)))
     });
 }
 

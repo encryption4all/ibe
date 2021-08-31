@@ -149,7 +149,7 @@ pub fn extract_usk<R: Rng>(
 }
 
 /// Generate a symmetric key and corresponding CipherText for that key.
-pub fn encrypt<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText, SymmetricKey) {
+pub fn encaps<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText, SymmetricKey) {
     let s = rand_scalar(rng);
     let s1 = rand_scalar(rng);
     let s2 = rand_scalar(rng);
@@ -173,7 +173,7 @@ pub fn encrypt<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText
 }
 
 /// Decrypt ciphertext to a SymmetricKey using a user secret key.
-pub fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> SymmetricKey {
+pub fn decaps(usk: &UserSecretKey, ct: &CipherText) -> SymmetricKey {
     let m = multi_miller_loop(&[
         (&ct.c[0], &G2Prepared::from(usk.d[0])),
         (&ct.c[1], &G2Prepared::from(usk.d[1])),
@@ -449,7 +449,7 @@ mod tests {
         let (pk, sk) = setup(&mut rng);
         let usk = extract_usk(&pk, &sk, &kid, &mut rng);
 
-        let (c, k) = encrypt(&pk, &kid, &mut rng);
+        let (c, k) = encaps(&pk, &kid, &mut rng);
 
         DefaultSubResults {
             kid,
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn eq_encrypt_decrypt() {
         let results = perform_default();
-        let k2 = decrypt(&results.usk, &results.c);
+        let k2 = decaps(&results.usk, &results.c);
 
         assert_eq!(results.k, k2);
     }
