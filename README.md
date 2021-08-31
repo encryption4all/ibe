@@ -6,6 +6,7 @@ Implements the following schemes (in chronological order):
 * Waters (PKE)
 * Waters-Naccache (PKE)
 * Kiltz-Vahlis IBE1 (CCA2 KEM)
+* Boyen-Waters (CPA KEM)
 * Chen-Gay-Wee (CPA PKE, CPA/CCA2 KEM)
 
 ## Technical notes
