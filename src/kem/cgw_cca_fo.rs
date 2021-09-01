@@ -10,12 +10,12 @@
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
 use crate::pke::cgw_cpa::{
-    decrypt, encrypt, CipherText, Message, CT_BYTES, MSG_BYTES, N_BYTE_LEN, USK_BYTES,
+    decrypt, encrypt, CipherText, Message, MSG_BYTES, N_BYTE_LEN, USK_BYTES,
 };
-use crate::util::*;
 use arrayref::{array_refs, mut_array_refs};
 use rand::Rng;
 use subtle::{ConditionallySelectable, ConstantTimeEq, CtOption};
+use tiny_keccak::{Hasher, Sha3};
 
 // These struct are identical for the CCA KEM
 pub use crate::pke::cgw_cpa::{Identity, PublicKey, SecretKey};
@@ -75,44 +75,55 @@ pub fn extract_usk<R: Rng>(sk: &SecretKey, id: &Identity, rng: &mut R) -> UserSe
 }
 
 pub fn encaps<R: Rng>(pk: &PublicKey, id: &Identity, rng: &mut R) -> (CipherText, SharedSecret) {
-    // Generate a random message in the target group
+    // Generate a random message in the message space of the PKE
     let m = Message::random(rng);
 
     // encrypt() takes 64 bytes of randomness in this case
-    // deterministically generate the randomness from the message using G = sha3_512
-    let coins = sha3_512(&m.to_bytes());
+    // deterministically generate the randomness as G(m, id)
+    // the message using G = sha3_512
+    let mut g = Sha3::v512();
+    let mut coins = [0u8; 64];
+    g.update(&m.to_bytes());
+    g.update(&id.0);
+    g.finalize(&mut coins);
 
     // encrypt the message using deterministic randomness
     let c = encrypt(pk, id, &m, &coins);
 
-    // output the shared secret as H(m, c)
-    let mut pre_k = [0u8; MSG_BYTES + CT_BYTES];
-    pre_k[0..MSG_BYTES].copy_from_slice(&m.to_bytes());
-    pre_k[MSG_BYTES..].copy_from_slice(&c.to_bytes());
-
-    let k = sha3_256(&pre_k);
+    // output the shared secret as H(m, c) using H = sha3_256
+    let mut h = Sha3::v256();
+    let mut k = [0u8; 32];
+    h.update(&m.to_bytes());
+    h.update(&c.to_bytes());
+    h.finalize(&mut k);
 
     (c, SharedSecret(k))
 }
 
-pub fn decaps(pk: &PublicKey, usk: &UserSecretKey, ct: &CipherText) -> SharedSecret {
+pub fn decaps(pk: &PublicKey, usk: &UserSecretKey, c: &CipherText) -> SharedSecret {
     // Attempt to decrypt the message from the ciphertext
-    let mut m = decrypt(&usk.usk, ct);
+    let mut m = decrypt(&usk.usk, c);
 
-    // Regenerate the deterministic randomness
-    let coins = sha3_512(&m.to_bytes());
+    // Regenerate the deterministic randomness as G(m, id)
+    let mut g = Sha3::v512();
+    let mut coins = [0u8; 64];
+    g.update(&m.to_bytes());
+    g.update(&usk.id.0);
+    g.finalize(&mut coins);
 
     // Re-encrypt the message
-    let ct2 = encrypt(pk, &usk.id, &m, &coins);
+    let c2 = encrypt(pk, &usk.id, &m, &coins);
 
     // If the ciphertexts were unequal, return H(s, c), otherwise H(m, c)
-    Message::conditional_assign(&mut m, &usk.s, !ct.ct_eq(&ct2));
+    m.conditional_assign(&usk.s, !c.ct_eq(&c2));
 
-    let mut pre_k = [0u8; MSG_BYTES + CT_BYTES];
-    pre_k[0..MSG_BYTES].copy_from_slice(&m.to_bytes());
-    pre_k[MSG_BYTES..].copy_from_slice(&ct.to_bytes());
+    let mut h = Sha3::v256();
+    let mut k = [0u8; 32];
+    h.update(&m.to_bytes());
+    h.update(&c.to_bytes());
+    h.finalize(&mut k);
 
-    SharedSecret(sha3_256(&pre_k))
+    SharedSecret(k)
 }
 
 #[cfg(test)]
