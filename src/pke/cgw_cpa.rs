@@ -465,8 +465,8 @@ impl ConstantTimeEq for CipherText {
     fn ct_eq(&self, other: &Self) -> Choice {
         self.c0[0].ct_eq(&other.c0[0])
             & self.c0[1].ct_eq(&other.c0[1])
-            & self.c1[0].ct_eq(&other.c0[0])
-            & self.c1[0].ct_eq(&other.c0[1])
+            & self.c1[0].ct_eq(&other.c1[0])
+            & self.c1[1].ct_eq(&other.c1[1])
             & self.cprime.ct_eq(&other.cprime)
     }
 }

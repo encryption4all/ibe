@@ -74,7 +74,7 @@ pub fn extract_usk<R: Rng>(sk: &SecretKey, id: &Identity, rng: &mut R) -> UserSe
     UserSecretKey { usk, s, id: *id }
 }
 
-pub fn encaps<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText, SharedSecret) {
+pub fn encaps<R: Rng>(pk: &PublicKey, id: &Identity, rng: &mut R) -> (CipherText, SharedSecret) {
     // Generate a random message in the target group
     let m = Message::random(rng);
 
@@ -83,7 +83,7 @@ pub fn encaps<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText,
     let coins = sha3_512(&m.to_bytes());
 
     // encrypt the message using deterministic randomness
-    let c = encrypt(pk, v, &m, &coins);
+    let c = encrypt(pk, id, &m, &coins);
 
     // output the shared secret as H(m, c)
     let mut pre_k = [0u8; MSG_BYTES + CT_BYTES];
@@ -97,7 +97,7 @@ pub fn encaps<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText,
 
 pub fn decaps(pk: &PublicKey, usk: &UserSecretKey, ct: &CipherText) -> SharedSecret {
     // Attempt to decrypt the message from the ciphertext
-    let m = decrypt(&usk.usk, ct);
+    let mut m = decrypt(&usk.usk, ct);
 
     // Regenerate the deterministic randomness
     let coins = sha3_512(&m.to_bytes());
@@ -105,8 +105,8 @@ pub fn decaps(pk: &PublicKey, usk: &UserSecretKey, ct: &CipherText) -> SharedSec
     // Re-encrypt the message
     let ct2 = encrypt(pk, &usk.id, &m, &coins);
 
-    // If the ciphertexts were equal, return H(m', c), otherwise return H(s, c), in constant time
-    let m = Message::conditional_select(&m, &usk.s, ct.ct_eq(&ct2));
+    // If the ciphertexts were unequal, return H(s, c), otherwise H(m, c)
+    Message::conditional_assign(&mut m, &usk.s, !ct.ct_eq(&ct2));
 
     let mut pre_k = [0u8; MSG_BYTES + CT_BYTES];
     pre_k[0..MSG_BYTES].copy_from_slice(&m.to_bytes());
