@@ -1,4 +1,4 @@
-//! Identity Based Encryption Kiltz-Vahlis IBE1 scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
+//! IND-CCA2 secure IBE Kiltz-Vahlis IBE1 scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
 //! * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //! * Published in: CT-RSA, 2008
 

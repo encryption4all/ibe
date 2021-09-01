@@ -1,4 +1,4 @@
-//! Fully-secure Identity Based Encryption by Chen, Gay and Wee.
+//! IND-ID-CPA secure IBE by Chen, Gay and Wee.
 //!
 //! This file contains the passively secure public-key encryption algorithm (PKE).
 //! All structs' byte serialization use compression.

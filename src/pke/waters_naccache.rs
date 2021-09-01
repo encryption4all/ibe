@@ -1,4 +1,4 @@
-//! Identity Based Encryption Waters-Naccache scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
+//! IND-ID-CPA secure IBE from Waters-Naccache scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
 //!  * Inspired by: [CHARM implementation](https://github.com/JHUISI/charm/blob/dev/charm/schemes/ibenc/ibenc_waters05.py)
 //!  * From: "[Secure and Practical Identity-Based Encryption](http://eprint.iacr.org/2005/369.pdf)"
 //!  * Published in: IET Information Security, 2007

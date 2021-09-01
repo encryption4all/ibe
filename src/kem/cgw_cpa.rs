@@ -1,4 +1,4 @@
-//! Fully-secure Identity Based Encryption by Chen, Gay and Wee.
+//! IND-ID-CPA secure IBKEM from a scheme by Chen, Gay and Wee.
 //! * From: "[Improved Dual System ABE in Prime-Order Groups via Predicate Encodings](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!
 //! This file contains the passively (IND-CPA) secure KEM.
