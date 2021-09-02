@@ -7,7 +7,7 @@ use rand::Rng;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 use crate::util::*;
-use irmaseal_curve::{G1Affine, G1Projective, G2Affine, Gt};
+use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt};
 
 const HASH_BIT_LEN: usize = 256;
 const HASH_BYTE_LEN: usize = HASH_BIT_LEN / 8;
@@ -132,10 +132,13 @@ pub fn encrypt<R: Rng>(pk: &PublicKey, v: &Identity, m: &Message, rng: &mut R) -
 
 /// Decrypt ciphertext to a message using a user secret key.
 pub fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Message {
-    let num = irmaseal_curve::pairing(&c.c3, &usk.d2);
-    let dem = irmaseal_curve::pairing(&usk.d1, &c.c2);
+    let m = c.c1
+        + multi_miller_loop(&[
+            (&c.c3, &G2Prepared::from(usk.d2)),
+            (&-usk.d1, &G2Prepared::from(c.c2)),
+        ])
+        .final_exponentiation();
 
-    let m = c.c1 + num - dem;
     Message(m)
 }
 
