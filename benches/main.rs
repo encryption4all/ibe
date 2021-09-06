@@ -16,14 +16,14 @@ macro_rules! bench_kem {
 
             let (pk, sk) = setup(&mut rng);
             let usk = extract_usk(&sk, &kid, &mut rng);
-            let ppk = pk.to_bytes();
+            //        let ppk = pk.to_bytes();
 
             let (c, _k) = encaps(&pk, &kid, &mut rng);
 
-            criterion.bench_function(
-                &format!("{} unpack_pk", stringify!($scheme_name)).to_string(),
-                |b| b.iter(|| PublicKey::from_bytes(&ppk)),
-            );
+            //        criterion.bench_function(
+            //            &format!("{} unpack_pk", stringify!($scheme_name)).to_string(),
+            //            |b| b.iter(|| PublicKey::from_bytes(&ppk)),
+            //        );
             criterion.bench_function(
                 &format!("{} setup", stringify!($scheme_name)).to_string(),
                 |b| {
@@ -228,6 +228,7 @@ fn criterion_boyen_waters_benchmark(criterion: &mut Criterion) {
 }
 
 bench_kem!(cgw_cca_kv, criterion_cgw_kem_cca_kv_benchmark);
+bench_kem!(cgw_cca_kvm, criterion_cgw_kem_cca_kvm_benchmark);
 bench_kem!(cgw_cpa, criterion_cgw_kem_cpa_benchmark);
 
 criterion_group!(
@@ -239,5 +240,6 @@ criterion_group!(
     criterion_cgw_kem_cpa_benchmark,
     criterion_cgw_kem_cca_kv_benchmark,
     criterion_cgw_kem_cca_fo_benchmark,
+    criterion_cgw_kem_cca_kvm_benchmark
 );
 criterion_main!(benches);
