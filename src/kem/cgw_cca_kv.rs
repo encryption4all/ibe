@@ -15,7 +15,7 @@ use irmaseal_curve::{
     Scalar,
 };
 use rand::Rng;
-use subtle::CtOption;
+use subtle::{Choice, CtOption};
 
 // Max identity buf size
 const K: usize = 256;
@@ -271,15 +271,13 @@ impl PublicKey {
 
         for i in 0..2 {
             let x = i * G1_BYTES;
-            let y = x + 2 * G1_BYTES;
-            let z = y + 2 * G1_BYTES;
-            res[x..x + G1_BYTES].copy_from_slice(&self.a_1[i].to_compressed());
-            res[y..y + G1_BYTES].copy_from_slice(&self.w0ta_1[i].to_compressed());
-            res[z..z + G1_BYTES].copy_from_slice(&self.w1ta_1[i].to_compressed());
+            let y = x + G1_BYTES;
+            res[x..y].copy_from_slice(&self.a_1[i].to_compressed());
+            res[96 + x..96 + y].copy_from_slice(&self.w0ta_1[i].to_compressed());
+            res[192 + x..192 + y].copy_from_slice(&self.w1ta_1[i].to_compressed());
         }
-
-        res[6 * G1_BYTES..7 * G1_BYTES].copy_from_slice(&self.wprime_1.to_compressed());
-        res[7 * G1_BYTES..].copy_from_slice(&self.kta_t.to_compressed());
+        res[288..336].copy_from_slice(&self.wprime_1.to_compressed());
+        res[336..].copy_from_slice(&self.kta_t.to_compressed());
 
         res
     }
@@ -290,36 +288,45 @@ impl PublicKey {
         // must be able to manipulate the public parameters. But then the
         // attacker can simply use parameters they generated themselves.
         // Thus checking for a cofactor is superfluous.
-        let a10 = G1Affine::from_compressed_unchecked(bytes[0..48].try_into().unwrap());
-        let a11 = G1Affine::from_compressed_unchecked(bytes[48..96].try_into().unwrap());
-        let w0ta10 = G1Affine::from_compressed_unchecked(bytes[96..144].try_into().unwrap());
-        let w0ta11 = G1Affine::from_compressed_unchecked(bytes[144..192].try_into().unwrap());
-        let w1ta10 = G1Affine::from_compressed_unchecked(bytes[192..240].try_into().unwrap());
-        let w1ta11 = G1Affine::from_compressed_unchecked(bytes[240..288].try_into().unwrap());
-        let wprime_1 = G1Affine::from_compressed_unchecked(bytes[288..336].try_into().unwrap());
-        let kta_t = Gt::from_compressed_unchecked(bytes[336..624].try_into().unwrap());
+        let mut a_1 = [G1Affine::default(); 2];
+        let mut w0ta_1 = [G1Affine::default(); 2];
+        let mut w1ta_1 = [G1Affine::default(); 2];
+        let mut wprime_1 = G1Affine::default();
+        let mut kta_t = Gt::default();
 
-        a10.and_then(|a10| {
-            a11.and_then(|a11| {
-                w0ta10.and_then(|w0ta10| {
-                    w0ta11.and_then(|w0ta11| {
-                        w1ta10.and_then(|w1ta10| {
-                            w1ta11.and_then(|w1ta11| {
-                                wprime_1.and_then(|wprime_1| {
-                                    kta_t.map(|kta_t| PublicKey {
-                                        a_1: [a10, a11],
-                                        w0ta_1: [w0ta10, w0ta11],
-                                        w1ta_1: [w1ta10, w1ta11],
-                                        wprime_1,
-                                        kta_t,
-                                    })
-                                })
-                            })
-                        })
-                    })
-                })
-            })
-        })
+        let mut is_some = Choice::from(1u8);
+        for i in 0..2 {
+            let x = i * G1_BYTES;
+            let y = x + G1_BYTES;
+            is_some &= G1Affine::from_compressed_unchecked(bytes[x..y].try_into().unwrap())
+                .map(|el| a_1[i] = el)
+                .is_some();
+            is_some &=
+                G1Affine::from_compressed_unchecked(bytes[96 + x..96 + y].try_into().unwrap())
+                    .map(|el| w0ta_1[i] = el)
+                    .is_some();
+            is_some &=
+                G1Affine::from_compressed_unchecked(bytes[192 + x..192 + y].try_into().unwrap())
+                    .map(|el| w1ta_1[i] = el)
+                    .is_some();
+        }
+        is_some &= G1Affine::from_compressed_unchecked(bytes[288..336].try_into().unwrap())
+            .map(|el| wprime_1 = el)
+            .is_some();
+        is_some &= Gt::from_compressed_unchecked(bytes[336..624].try_into().unwrap())
+            .map(|el| kta_t = el)
+            .is_some();
+
+        CtOption::new(
+            PublicKey {
+                a_1,
+                w0ta_1,
+                w1ta_1,
+                wprime_1,
+                kta_t,
+            },
+            is_some,
+        )
     }
 }
 
@@ -330,72 +337,64 @@ impl SecretKey {
 
         for i in 0..2 {
             x = i * SCALAR_BYTES;
-            y = x + 2 * SCALAR_BYTES;
-            res[x..x + SCALAR_BYTES].copy_from_slice(&self.b[i].to_bytes());
-            res[y..y + SCALAR_BYTES].copy_from_slice(&self.k[i].to_bytes());
+            y = x + SCALAR_BYTES;
+            res[x..y].copy_from_slice(&self.b[i].to_bytes());
+            res[64 + x..64 + y].copy_from_slice(&self.k[i].to_bytes());
 
             for j in 0..2 {
-                x = (2 * i + j + 4) * SCALAR_BYTES;
-                y = x + 4 * SCALAR_BYTES;
-                res[x..x + SCALAR_BYTES].copy_from_slice(&self.w0[i][j].to_bytes());
-                res[y..y + SCALAR_BYTES].copy_from_slice(&self.w1[i][j].to_bytes());
+                x = (i * 2 + j) * SCALAR_BYTES;
+                y = x + SCALAR_BYTES;
+                res[128 + x..128 + y].copy_from_slice(&self.w0[i][j].to_bytes());
+                res[256 + x..256 + y].copy_from_slice(&self.w1[i][j].to_bytes());
             }
         }
-
-        res[12 * SCALAR_BYTES..].copy_from_slice(&self.wprime.to_bytes());
+        res[384..].copy_from_slice(&self.wprime.to_bytes());
 
         res
     }
 
     pub fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
-        let b0 = Scalar::from_bytes(&bytes[0..32].try_into().unwrap());
-        let b1 = Scalar::from_bytes(&bytes[32..64].try_into().unwrap());
-        let k0 = Scalar::from_bytes(&bytes[64..96].try_into().unwrap());
-        let k1 = Scalar::from_bytes(&bytes[96..128].try_into().unwrap());
+        let mut b = [Scalar::default(); 2];
+        let mut k = [Scalar::default(); 2];
+        let mut w0 = [[Scalar::default(); 2]; 2];
+        let mut w1 = [[Scalar::default(); 2]; 2];
 
-        let w000 = Scalar::from_bytes(&bytes[128..160].try_into().unwrap());
-        let w001 = Scalar::from_bytes(&bytes[160..192].try_into().unwrap());
-        let w010 = Scalar::from_bytes(&bytes[192..224].try_into().unwrap());
-        let w011 = Scalar::from_bytes(&bytes[224..256].try_into().unwrap());
+        let mut is_some = Choice::from(1u8);
+        for i in 0..2 {
+            let x = i * SCALAR_BYTES;
+            let y = x + SCALAR_BYTES;
+            is_some &= Scalar::from_bytes(&bytes[x..y].try_into().unwrap())
+                .map(|s| b[i] = s)
+                .is_some();
+            is_some &= Scalar::from_bytes(&bytes[64 + x..64 + y].try_into().unwrap())
+                .map(|s| k[i] = s)
+                .is_some();
+            for j in 0..2 {
+                let x = (i * 2 + j) * SCALAR_BYTES;
+                let y = x + SCALAR_BYTES;
+                is_some &= Scalar::from_bytes(&bytes[128 + x..128 + y].try_into().unwrap())
+                    .map(|s| w0[i][j] = s)
+                    .is_some();
+                is_some &= Scalar::from_bytes(&bytes[256 + x..256 + y].try_into().unwrap())
+                    .map(|s| w1[i][j] = s)
+                    .is_some();
+            }
+        }
+        let mut wprime = Scalar::default();
+        is_some &= Scalar::from_bytes(&bytes[384..].try_into().unwrap())
+            .map(|s| wprime = s)
+            .is_some();
 
-        let w100 = Scalar::from_bytes(&bytes[256..288].try_into().unwrap());
-        let w101 = Scalar::from_bytes(&bytes[288..320].try_into().unwrap());
-        let w110 = Scalar::from_bytes(&bytes[320..352].try_into().unwrap());
-        let w111 = Scalar::from_bytes(&bytes[352..384].try_into().unwrap());
-
-        let wprime = Scalar::from_bytes(&bytes[384..416].try_into().unwrap());
-
-        b0.and_then(|b0| {
-            b1.and_then(|b1| {
-                k0.and_then(|k0| {
-                    k1.and_then(|k1| {
-                        w000.and_then(|w000| {
-                            w001.and_then(|w001| {
-                                w010.and_then(|w010| {
-                                    w011.and_then(|w011| {
-                                        w100.and_then(|w100| {
-                                            w101.and_then(|w101| {
-                                                w110.and_then(|w110| {
-                                                    w111.and_then(|w111| {
-                                                        wprime.map(|wprime| SecretKey {
-                                                            b: [b0, b1],
-                                                            k: [k0, k1],
-                                                            w0: [[w000, w001], [w010, w011]],
-                                                            w1: [[w100, w101], [w110, w111]],
-                                                            wprime,
-                                                        })
-                                                    })
-                                                })
-                                            })
-                                        })
-                                    })
-                                })
-                            })
-                        })
-                    })
-                })
-            })
-        })
+        CtOption::new(
+            SecretKey {
+                b,
+                k,
+                w0,
+                w1,
+                wprime,
+            },
+            is_some,
+        )
     }
 }
 
