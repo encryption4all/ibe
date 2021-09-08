@@ -1,13 +1,13 @@
 # IBE
-Identity Based Encryption schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) in Rust.
+Collection of Identity Based Encryption (IBE) schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) in Rust.
 This crate contains both public-key encryption schemes (PKEs, see `src/pke`) and key encapsulation mechanisms (KEMs, see `src/kem`). References to papers appear in the respective source files.
 
-Implements the following schemes (in chronological order):
-* Waters (PKE)
-* Waters-Naccache (PKE)
-* Kiltz-Vahlis IBE1 (CCA2 KEM)
-* Boyen-Waters (CPA KEM)
-* Chen-Gay-Wee (CPA PKE, CPA/CCA2 KEM)
+This crate contains the following schemes (in chronological order of publication):
+* Waters (IND-ID-CPA PKE)
+* Boyen-Waters (IND-sID-CPA KEM)
+* Waters-Naccache (IND-ID-CPA PKE)
+* Kiltz-Vahlis IBE1 (IND-CCA2 KEM)
+* Chen-Gay-Wee (IND-ID-CPA PKE, IND-ID-CPA/IND-ID-CCA2 KEM)
 
 ## Technical notes
 * **This implementation has not (yet) been reviewed or audited. Use at your own risk.**
