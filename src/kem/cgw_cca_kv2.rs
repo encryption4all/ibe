@@ -178,8 +178,7 @@ pub fn extract_usk<R: Rng>(sk: &SecretKey, v: &Identity, rng: &mut R) -> UserSec
             - (br[0] * sk.w0[0][0]
                 + br[1] * sk.w0[0][1]
                 + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
-        g2 * (alpha2
-            - sk.k[1]
+        g2 * (-sk.k[1]
             - (br[0] * sk.w0[1][0]
                 + br[1] * sk.w0[1][1]
                 + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
