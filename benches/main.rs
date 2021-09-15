@@ -227,8 +227,9 @@ fn criterion_boyen_waters_benchmark(criterion: &mut Criterion) {
     });
 }
 
-bench_kem!(cgw_cca_kv, criterion_cgw_kem_cca_kv_benchmark);
-bench_kem!(cgw_cca_kvm, criterion_cgw_kem_cca_kvm_benchmark);
+bench_kem!(cgw_cca_kv1, criterion_cgw_kem_cca_kv1_benchmark);
+bench_kem!(cgw_cca_kv2, criterion_cgw_kem_cca_kv2_benchmark);
+bench_kem!(cgw_cca_kv3, criterion_cgw_kem_cca_kv3_benchmark);
 bench_kem!(cgw_cpa, criterion_cgw_kem_cpa_benchmark);
 
 criterion_group!(
@@ -238,8 +239,9 @@ criterion_group!(
     criterion_kiltz_vahlis_one_benchmark,
     criterion_boyen_waters_benchmark,
     criterion_cgw_kem_cpa_benchmark,
-    criterion_cgw_kem_cca_kv_benchmark,
     criterion_cgw_kem_cca_fo_benchmark,
-    criterion_cgw_kem_cca_kvm_benchmark
+    criterion_cgw_kem_cca_kv1_benchmark,
+    criterion_cgw_kem_cca_kv2_benchmark,
+    criterion_cgw_kem_cca_kv3_benchmark
 );
 criterion_main!(benches);

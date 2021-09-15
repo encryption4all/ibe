@@ -56,5 +56,7 @@ fn main() {
 
     print_sizes_kem!(cgw_cpa);
     print_sizes_kem!(cgw_cca_fo);
-    print_sizes_kem!(cgw_cca_kv);
+    print_sizes_kem!(cgw_cca_kv1);
+    //print_sizes_kem!(cgw_cca_kv2);
+    //    print_sizes_kem!(cgw_cca_kv3);
 }

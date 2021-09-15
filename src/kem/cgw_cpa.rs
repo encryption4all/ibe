@@ -132,28 +132,22 @@ pub fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
 pub fn extract_usk<R: Rng>(sk: &SecretKey, v: &Identity, rng: &mut R) -> UserSecretKey {
     let g2 = G2Affine::generator();
     let r = rand_scalar(rng);
+    let id = v.to_scalar();
 
     let br = [sk.b[0] * r, sk.b[1] * r];
 
-    // X = W0 + id W1
-    let id = v.to_scalar();
-    let x = [
-        [
-            id * sk.w1[0][0] + sk.w0[0][0],
-            id * sk.w1[0][1] + sk.w0[0][1],
-        ],
-        [
-            id * sk.w1[1][0] + sk.w0[1][0],
-            id * sk.w1[1][1] + sk.w0[1][1],
-        ],
+    let batch = [
+        g2 * br[0],
+        g2 * br[1],
+        g2 * (sk.k[0]
+            + (br[0] * sk.w0[0][0]
+                + br[1] * sk.w0[0][1]
+                + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
+        g2 * (sk.k[1]
+            + (br[0] * sk.w0[1][0]
+                + br[1] * sk.w0[1][1]
+                + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
     ];
-
-    let xbrplusk = [
-        x[0][0] * br[0] + x[0][1] * br[1] + sk.k[0],
-        x[1][0] * br[0] + x[1][1] * br[1] + sk.k[1],
-    ];
-
-    let batch = [g2 * br[0], g2 * br[1], g2 * xbrplusk[0], g2 * xbrplusk[1]];
     let mut out = [G2Affine::default(); 4];
     G2Projective::batch_normalize(&batch, &mut out);
 
