@@ -10,7 +10,7 @@
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
 use crate::pke::cgw_cpa::{
-    decrypt, encrypt, CipherText, Message, MSG_BYTES, N_BYTE_LEN, USK_BYTES,
+    decrypt, encrypt, CipherText, Message, MSG_BYTES, N_BYTE_LEN, USK_BYTES as CPA_USK_BYTES,
 };
 use arrayref::{array_refs, mut_array_refs};
 use rand::Rng;
@@ -18,10 +18,10 @@ use subtle::{ConditionallySelectable, ConstantTimeEq, CtOption};
 use tiny_keccak::{Hasher, Sha3};
 
 // These struct are identical for the CCA KEM
-pub use crate::pke::cgw_cpa::{Identity, PublicKey, SecretKey};
+pub use crate::pke::cgw_cpa::{Identity, PublicKey, SecretKey, CT_BYTES, PK_BYTES, SK_BYTES};
 
 // The USK includes a random message and the identity (needed for re-encryption)
-const CCA_USK_BYTES: usize = USK_BYTES + MSG_BYTES + N_BYTE_LEN;
+pub const USK_BYTES: usize = CPA_USK_BYTES + MSG_BYTES + N_BYTE_LEN;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SharedSecret([u8; 32]);
@@ -34,9 +34,9 @@ pub struct UserSecretKey {
 }
 
 impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; CCA_USK_BYTES] {
-        let mut buf = [0u8; CCA_USK_BYTES];
-        let (usk, s, id) = mut_array_refs![&mut buf, USK_BYTES, MSG_BYTES, N_BYTE_LEN];
+    pub fn to_bytes(&self) -> [u8; USK_BYTES] {
+        let mut buf = [0u8; USK_BYTES];
+        let (usk, s, id) = mut_array_refs![&mut buf, CPA_USK_BYTES, MSG_BYTES, N_BYTE_LEN];
 
         *usk = self.usk.to_bytes();
         *s = self.s.to_bytes();
@@ -45,8 +45,8 @@ impl UserSecretKey {
         buf
     }
 
-    pub fn from_bytes(bytes: &[u8; CCA_USK_BYTES]) -> CtOption<Self> {
-        let (usk, s, id) = array_refs![&bytes, USK_BYTES, MSG_BYTES, N_BYTE_LEN];
+    pub fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
+        let (usk, s, id) = array_refs![&bytes, CPA_USK_BYTES, MSG_BYTES, N_BYTE_LEN];
 
         let usk = crate::pke::cgw_cpa::UserSecretKey::from_bytes(usk);
         let s = Message::from_bytes(s);

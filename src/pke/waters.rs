@@ -13,9 +13,19 @@ const HASH_BIT_LEN: usize = 256;
 const HASH_BYTE_LEN: usize = HASH_BIT_LEN / 8;
 
 const CHUNKS: usize = HASH_BIT_LEN;
-
 const PARAMETERSIZE: usize = CHUNKS * 48;
-const PUBLICKEYSIZE: usize = 2 * 48 + 2 * 96 + PARAMETERSIZE;
+
+// Sizes of elements in particular groups (compressed)
+const GT_BYTES: usize = 288;
+const G1_BYTES: usize = 48;
+const G2_BYTES: usize = 96;
+
+// Derived sizes of compressed
+pub const MSG_BYTES: usize = GT_BYTES;
+pub const PK_BYTES: usize = 2 * 48 + 2 * 96 + PARAMETERSIZE;
+pub const SK_BYTES: usize = G1_BYTES;
+pub const USK_BYTES: usize = G1_BYTES + G2_BYTES;
+pub const CT_BYTES: usize = G1_BYTES + G2_BYTES + GT_BYTES;
 
 /// Public key parameters used for entanglement with identities.
 struct Parameters([G1Affine; CHUNKS]);
@@ -143,8 +153,8 @@ pub fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Message {
 }
 
 impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PUBLICKEYSIZE] {
-        let mut res = [0u8; PUBLICKEYSIZE];
+    pub fn to_bytes(&self) -> [u8; PK_BYTES] {
+        let mut res = [0u8; PK_BYTES];
         let (g, g1, g2, uprime, u) = mut_array_refs![&mut res, 96, 48, 96, 48, PARAMETERSIZE];
         *g = self.g.to_compressed();
         *g1 = self.g1.to_compressed();
@@ -154,7 +164,7 @@ impl PublicKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; PUBLICKEYSIZE]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
         let (g, g1, g2, uprime, u) = array_refs![bytes, 96, 48, 96, 48, PARAMETERSIZE];
 
         let g = G2Affine::from_compressed(g);
@@ -182,25 +192,25 @@ impl PublicKey {
 }
 
 impl SecretKey {
-    pub fn to_bytes(&self) -> [u8; 48] {
+    pub fn to_bytes(&self) -> [u8; SK_BYTES] {
         self.g1prime.to_compressed()
     }
 
-    pub fn from_bytes(bytes: &[u8; 48]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
         G1Affine::from_compressed(bytes).map(|g1prime| SecretKey { g1prime })
     }
 }
 
 impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; 144] {
-        let mut res = [0u8; 144];
+    pub fn to_bytes(&self) -> [u8; USK_BYTES] {
+        let mut res = [0u8; USK_BYTES];
         let (d1, d2) = mut_array_refs![&mut res, 48, 96];
         *d1 = self.d1.to_compressed();
         *d2 = self.d2.to_compressed();
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; 144]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
         let (d1, d2) = array_refs![bytes, 48, 96];
 
         let d1 = G1Affine::from_compressed(d1);
@@ -216,11 +226,11 @@ impl Message {
         Self(rand_gt(rng))
     }
 
-    pub fn to_bytes(&self) -> [u8; 288] {
+    pub fn to_bytes(&self) -> [u8; MSG_BYTES] {
         self.0.to_compressed()
     }
 
-    pub fn from_bytes(bytes: &[u8; 288]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; MSG_BYTES]) -> CtOption<Self> {
         Gt::from_compressed(bytes).map(Message)
     }
 }
@@ -309,8 +319,8 @@ impl Clone for Identity {
 impl Copy for Identity {}
 
 impl CipherText {
-    pub fn to_bytes(&self) -> [u8; 432] {
-        let mut res = [0u8; 432];
+    pub fn to_bytes(&self) -> [u8; CT_BYTES] {
+        let mut res = [0u8; CT_BYTES];
         let (c1, c2, c3) = mut_array_refs![&mut res, 288, 96, 48];
         *c1 = self.c1.to_compressed();
         *c2 = self.c2.to_compressed();
@@ -318,7 +328,7 @@ impl CipherText {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; 432]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
         let (c1, c2, c3) = array_refs![bytes, 288, 96, 48];
 
         let c1 = Gt::from_compressed(c1);

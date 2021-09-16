@@ -14,7 +14,15 @@ const N_BYTE_LEN: usize = N / 8;
 
 const HASH_PARAMETER_SIZE: usize = N * 48;
 
-const PUBLICKEYSIZE: usize = 96 + 48 + HASH_PARAMETER_SIZE + 48 + 288;
+// Sizes of elements in particular groups (compressed)
+const G1_BYTES: usize = 48;
+const G2_BYTES: usize = 96;
+
+// Derived sizes
+pub const PK_BYTES: usize = 96 + 48 + HASH_PARAMETER_SIZE + 48 + 288;
+pub const SK_BYTES: usize = G1_BYTES;
+pub const USK_BYTES: usize = 2 * G1_BYTES + G2_BYTES;
+pub const CT_BYTES: usize = G1_BYTES + G2_BYTES;
 
 struct HashParameters([G1Affine; N]);
 
@@ -230,8 +238,8 @@ impl Default for HashParameters {
 }
 
 impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PUBLICKEYSIZE] {
-        let mut res = [0u8; PUBLICKEYSIZE];
+    pub fn to_bytes(&self) -> [u8; PK_BYTES] {
+        let mut res = [0u8; PK_BYTES];
 
         let (g, hzero, h, u, z) = mut_array_refs![&mut res, 96, 48, HASH_PARAMETER_SIZE, 48, 288];
         *g = self.g.to_compressed();
@@ -242,7 +250,7 @@ impl PublicKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; PUBLICKEYSIZE]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
         let (g, hzero, h, u, z) = array_refs![&bytes, 96, 48, HASH_PARAMETER_SIZE, 48, 288];
 
         // from_compressed_unchecked doesn't check whether the element has
@@ -265,18 +273,18 @@ impl PublicKey {
 }
 
 impl SecretKey {
-    pub fn to_bytes(&self) -> [u8; 48] {
+    pub fn to_bytes(&self) -> [u8; SK_BYTES] {
         self.alpha.to_compressed()
     }
 
-    pub fn from_bytes(bytes: &[u8; 48]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
         G1Affine::from_compressed(bytes).map(|alpha| SecretKey { alpha })
     }
 }
 
 impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; 192] {
-        let mut res = [0u8; 192];
+    pub fn to_bytes(&self) -> [u8; USK_BYTES] {
+        let mut res = [0u8; USK_BYTES];
         let (d1, d2, d3) = mut_array_refs![&mut res, 48, 96, 48];
         *d1 = self.d1.to_compressed();
         *d2 = self.d2.to_compressed();
@@ -284,7 +292,7 @@ impl UserSecretKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; 192]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
         let (d1, d2, d3) = array_refs![bytes, 48, 96, 48];
 
         let d1 = G1Affine::from_compressed(d1);
@@ -296,15 +304,15 @@ impl UserSecretKey {
 }
 
 impl CipherText {
-    pub fn to_bytes(&self) -> [u8; 144] {
-        let mut res = [0u8; 144];
+    pub fn to_bytes(&self) -> [u8; CT_BYTES] {
+        let mut res = [0u8; CT_BYTES];
         let (c1, c2) = mut_array_refs![&mut res, 96, 48];
         *c1 = self.c1.to_compressed();
         *c2 = self.c2.to_compressed();
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; 144]) -> CtOption<Self> {
+    pub fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
         let (c1, c2) = array_refs![bytes, 96, 48];
 
         let c1 = G2Affine::from_compressed(c1);
