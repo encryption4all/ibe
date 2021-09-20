@@ -8,6 +8,7 @@
 //! Important notice: Keep in mind that the security of this scheme has not formally been proven.
 
 use crate::util::*;
+use crate::{kem::IBKEM, Compressable};
 use core::convert::TryInto;
 use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
@@ -66,7 +67,7 @@ pub struct UserSecretKey {
 
 /// Encrypted message. Can only be decapsed with a corresponding user secret key.
 /// Also known as CT_{id}
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct CipherText {
     c0: [G1Affine; 2],
     c1: [G1Affine; 2],
@@ -81,136 +82,164 @@ pub struct Identity([u8; N_BYTE_LEN]);
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SharedSecret(Gt);
 
-/// Generate a keypair used by the Private Key Generator (PKG).
-pub fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
-    let g1 = G1Affine::generator();
-    let g2 = G2Affine::generator();
-
-    let a = [rand_scalar(rng), rand_scalar(rng)];
-    let b = [rand_scalar(rng), rand_scalar(rng)];
-
-    let w0 = [
-        [rand_scalar(rng), rand_scalar(rng)],
-        [rand_scalar(rng), rand_scalar(rng)],
-    ];
-
-    let w1 = [
-        [rand_scalar(rng), rand_scalar(rng)],
-        [rand_scalar(rng), rand_scalar(rng)],
-    ];
-
-    let k = [rand_scalar(rng), rand_scalar(rng)];
-
-    let w0ta = [
-        w0[0][0] * a[0] + w0[1][0] * a[1],
-        w0[0][1] * a[0] + w0[1][1] * a[1],
-    ];
-    let w1ta = [
-        w1[0][0] * a[0] + w1[1][0] * a[1],
-        w1[0][1] * a[0] + w1[1][1] * a[1],
-    ];
-
-    let wprime = rand_scalar(rng);
-    let batch = [
-        g1 * a[0],
-        g1 * a[1],
-        g1 * w0ta[0],
-        g1 * w0ta[1],
-        g1 * w1ta[0],
-        g1 * w1ta[1],
-        g1 * (wprime * a[0]),
-    ];
-
-    let mut out = [G1Affine::default(); 7];
-    G1Projective::batch_normalize(&batch, &mut out);
-    let kta_t = pairing(&g1, &g2) * (k[0] * a[0] + k[1] * a[1]);
-
-    (
-        PublicKey {
-            a_1: [out[0], out[1]],
-            w0ta_1: [out[2], out[3]],
-            w1ta_1: [out[4], out[5]],
-            wprime_1: out[6],
-            kta_t,
-        },
-        SecretKey {
-            b,
-            k,
-            w0,
-            w1,
-            wprime,
-        },
-    )
-}
-
 fn hash_g1_to_scalar(g1: G1Affine) -> Scalar {
     let buf = sha3_512(&g1.to_uncompressed());
     Scalar::from_bytes_wide(&buf)
 }
+pub struct CGWKV1;
 
-/// Extract a user secret key for a given identity.
-pub fn extract_usk<R: Rng>(sk: &SecretKey, v: &Identity, rng: &mut R) -> UserSecretKey {
-    let g2 = G2Affine::generator();
-    let r = rand_scalar(rng);
-    let id = v.to_scalar();
+impl IBKEM for CGWKV1 {
+    type Pk = PublicKey;
+    type Sk = SecretKey;
+    type Usk = UserSecretKey;
+    type Ct = CipherText;
+    type Ss = SharedSecret;
+    type Id = Identity;
 
-    let br = [sk.b[0] * r, sk.b[1] * r];
+    const PK_BYTES: usize = PK_BYTES;
+    const SK_BYTES: usize = SK_BYTES;
+    const USK_BYTES: usize = USK_BYTES;
+    const CT_BYTES: usize = CT_BYTES;
 
-    let batch = [
-        g2 * br[0],
-        g2 * br[1],
-        g2 * (sk.k[0]
-            + (br[0] * sk.w0[0][0]
-                + br[1] * sk.w0[0][1]
-                + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
-        g2 * (sk.k[1]
-            + (br[0] * sk.w0[1][0]
-                + br[1] * sk.w0[1][1]
-                + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
-        g2 * (br[0] * sk.wprime),
-    ];
-    let mut out = [G2Affine::default(); 5];
-    G2Projective::batch_normalize(&batch, &mut out);
+    /// Generate a keypair used by the Private Key Generator (PKG).
+    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+        let g1 = G1Affine::generator();
+        let g2 = G2Affine::generator();
 
-    UserSecretKey {
-        d0: [out[0], out[1]],
-        d1: [out[2], out[3]],
-        kprime: out[4],
+        let a = [rand_scalar(rng), rand_scalar(rng)];
+        let b = [rand_scalar(rng), rand_scalar(rng)];
+
+        let w0 = [
+            [rand_scalar(rng), rand_scalar(rng)],
+            [rand_scalar(rng), rand_scalar(rng)],
+        ];
+
+        let w1 = [
+            [rand_scalar(rng), rand_scalar(rng)],
+            [rand_scalar(rng), rand_scalar(rng)],
+        ];
+
+        let k = [rand_scalar(rng), rand_scalar(rng)];
+
+        let w0ta = [
+            w0[0][0] * a[0] + w0[1][0] * a[1],
+            w0[0][1] * a[0] + w0[1][1] * a[1],
+        ];
+        let w1ta = [
+            w1[0][0] * a[0] + w1[1][0] * a[1],
+            w1[0][1] * a[0] + w1[1][1] * a[1],
+        ];
+
+        let wprime = rand_scalar(rng);
+        let batch = [
+            g1 * a[0],
+            g1 * a[1],
+            g1 * w0ta[0],
+            g1 * w0ta[1],
+            g1 * w1ta[0],
+            g1 * w1ta[1],
+            g1 * (wprime * a[0]),
+        ];
+
+        let mut out = [G1Affine::default(); 7];
+        G1Projective::batch_normalize(&batch, &mut out);
+        let kta_t = pairing(&g1, &g2) * (k[0] * a[0] + k[1] * a[1]);
+
+        (
+            PublicKey {
+                a_1: [out[0], out[1]],
+                w0ta_1: [out[2], out[3]],
+                w1ta_1: [out[4], out[5]],
+                wprime_1: out[6],
+                kta_t,
+            },
+            SecretKey {
+                b,
+                k,
+                w0,
+                w1,
+                wprime,
+            },
+        )
     }
-}
 
-/// Generate a SharedSecret and corresponding Ciphertext for that key.
-pub fn encaps<R: Rng>(pk: &PublicKey, v: &Identity, rng: &mut R) -> (CipherText, SharedSecret) {
-    let s = rand_scalar(rng);
-    let id = v.to_scalar();
+    /// Extract a user secret key for a given identity.
+    fn extract_usk<R: Rng>(
+        _pk: Option<&PublicKey>,
+        sk: &SecretKey,
+        v: &Identity,
+        rng: &mut R,
+    ) -> UserSecretKey {
+        let g2 = G2Affine::generator();
+        let r = rand_scalar(rng);
+        let id = v.to_scalar();
 
-    let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
-    let y = hash_g1_to_scalar(c0[0]);
+        let br = [sk.b[0] * r, sk.b[1] * r];
 
-    let c1: [G1Affine; 2] = [
-        ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * id)) + (pk.wprime_1 * (s * y))).into(),
-        ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * id))).into(),
-    ];
+        let batch = [
+            g2 * br[0],
+            g2 * br[1],
+            g2 * (sk.k[0]
+                + (br[0] * sk.w0[0][0]
+                    + br[1] * sk.w0[0][1]
+                    + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
+            g2 * (sk.k[1]
+                + (br[0] * sk.w0[1][0]
+                    + br[1] * sk.w0[1][1]
+                    + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
+            g2 * (br[0] * sk.wprime),
+        ];
+        let mut out = [G2Affine::default(); 5];
+        G2Projective::batch_normalize(&batch, &mut out);
 
-    let cprime = pk.kta_t * s;
+        UserSecretKey {
+            d0: [out[0], out[1]],
+            d1: [out[2], out[3]],
+            kprime: out[4],
+        }
+    }
 
-    (CipherText { c0, c1 }, SharedSecret(cprime))
-}
+    /// Generate a SharedSecret and corresponding Ciphertext for that key.
+    fn multi_encaps<R: Rng, const N: usize>(
+        pk: &Self::Pk,
+        ids: &[&Self::Id; N],
+        rng: &mut R,
+    ) -> ([Self::Ct; N], Self::Ss) {
+        let s = rand_scalar(rng);
+        let k = pk.kta_t * s;
 
-/// Derive the same SharedSecret from the CipherText using a UserSecretKey.
-pub fn decaps(usk: &UserSecretKey, ct: &CipherText) -> SharedSecret {
-    let y = hash_g1_to_scalar(ct.c0[0]);
-    let z: G2Affine = (usk.d1[0] + (usk.kprime * y)).into();
+        let mut cts = [CipherText::default(); N];
+        for (i, id) in ids.iter().enumerate() {
+            let x = id.to_scalar();
+            let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
+            let y = hash_g1_to_scalar(c0[0]);
 
-    let m = multi_miller_loop(&[
-        (&ct.c0[0], &G2Prepared::from(z)),
-        (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
-        (&-ct.c1[0], &G2Prepared::from(usk.d0[0])),
-        (&-ct.c1[1], &G2Prepared::from(usk.d0[1])),
-    ])
-    .final_exponentiation();
+            let c1: [G1Affine; 2] = [
+                ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x)) + (pk.wprime_1 * (s * y))).into(),
+                ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
+            ];
 
-    SharedSecret(m)
+            cts[i] = CipherText { c0, c1 }
+        }
+
+        (cts, SharedSecret(k))
+    }
+
+    /// Derive the same SharedSecret from the CipherText using a UserSecretKey.
+    fn decaps(_pk: Option<&PublicKey>, usk: &UserSecretKey, ct: &CipherText) -> SharedSecret {
+        let y = hash_g1_to_scalar(ct.c0[0]);
+        let z: G2Affine = (usk.d1[0] + (usk.kprime * y)).into();
+
+        let m = multi_miller_loop(&[
+            (&ct.c0[0], &G2Prepared::from(z)),
+            (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
+            (&-ct.c1[0], &G2Prepared::from(usk.d0[0])),
+            (&-ct.c1[1], &G2Prepared::from(usk.d0[1])),
+        ])
+        .final_exponentiation();
+
+        SharedSecret(m)
+    }
 }
 
 impl Identity {
@@ -253,8 +282,11 @@ impl SharedSecret {
     }
 }
 
-impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PK_BYTES] {
+impl Compressable for PublicKey {
+    const OUTPUT_SIZE: usize = PK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; PK_BYTES] {
         let mut res = [0u8; PK_BYTES];
 
         for i in 0..2 {
@@ -270,7 +302,7 @@ impl PublicKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
         // from_compressed_unchecked doesn't check whether the element has
         // a cofactor. To mount an attack using a cofactor an attacker
         // must be able to manipulate the public parameters. But then the
@@ -318,8 +350,11 @@ impl PublicKey {
     }
 }
 
-impl SecretKey {
-    pub fn to_bytes(&self) -> [u8; SK_BYTES] {
+impl Compressable for SecretKey {
+    const OUTPUT_SIZE: usize = SK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; SK_BYTES] {
         let mut res = [0u8; SK_BYTES];
         let (mut x, mut y);
 
@@ -341,7 +376,7 @@ impl SecretKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
         let mut b = [Scalar::default(); 2];
         let mut k = [Scalar::default(); 2];
         let mut w0 = [[Scalar::default(); 2]; 2];
@@ -386,8 +421,11 @@ impl SecretKey {
     }
 }
 
-impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; USK_BYTES] {
+impl Compressable for UserSecretKey {
+    const OUTPUT_SIZE: usize = USK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; USK_BYTES] {
         let mut res = [0u8; USK_BYTES];
 
         for i in 0..2 {
@@ -400,7 +438,8 @@ impl UserSecretKey {
 
         res
     }
-    pub fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
+
+    fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
         let mut d0 = [G2Affine::default(); 2];
         let mut d1 = [G2Affine::default(); 2];
         let mut kprime = G2Affine::default();
@@ -424,8 +463,11 @@ impl UserSecretKey {
     }
 }
 
-impl CipherText {
-    pub fn to_bytes(&self) -> [u8; CT_BYTES] {
+impl Compressable for CipherText {
+    const OUTPUT_SIZE: usize = CT_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; CT_BYTES] {
         let mut res = [0u8; CT_BYTES];
 
         for i in 0..2 {
@@ -438,7 +480,7 @@ impl CipherText {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
         let mut c0 = [G1Affine::default(); 2];
         let mut c1 = [G1Affine::default(); 2];
 
@@ -460,59 +502,5 @@ impl CipherText {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    const ID: &'static [u8] = b"email:w.geraedts@sarif.nl";
-
-    #[allow(dead_code)]
-    struct DefaultSubResults {
-        pk: PublicKey,
-        sk: SecretKey,
-        usk: UserSecretKey,
-        c: CipherText,
-        ss: SharedSecret,
-    }
-
-    fn perform_default() -> DefaultSubResults {
-        let mut rng = rand::thread_rng();
-
-        let kid = Identity::derive(ID);
-
-        let (pk, sk) = setup(&mut rng);
-        let usk = extract_usk(&sk, &kid, &mut rng);
-
-        let (c, ss) = encaps(&pk, &kid, &mut rng);
-
-        DefaultSubResults { pk, sk, usk, c, ss }
-    }
-
-    #[test]
-    fn eq_encaps_decaps() {
-        let results = perform_default();
-        let ss2 = decaps(&results.usk, &results.c);
-
-        assert_eq!(results.ss, ss2);
-    }
-    #[test]
-    fn eq_serialize_deserialize() {
-        let result = perform_default();
-
-        assert_eq!(
-            result.ss,
-            SharedSecret::from_bytes(&result.ss.to_bytes()).unwrap()
-        );
-        assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
-        assert_eq!(
-            result.sk,
-            SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.usk,
-            UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.c,
-            CipherText::from_bytes(&result.c.to_bytes()).unwrap()
-        );
-    }
+    test_kem!(CGWKV1);
 }

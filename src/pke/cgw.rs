@@ -4,6 +4,7 @@
 //! All structs' byte serialization use compression.
 
 use crate::util::*;
+use crate::{pke::IBE, Compressable};
 use arrayref::{array_refs, mut_array_refs};
 use core::convert::TryInto;
 use irmaseal_curve::{
@@ -12,6 +13,9 @@ use irmaseal_curve::{
 };
 use rand::Rng;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
+
+#[allow(unused_imports)]
+use group::Group;
 
 // Max identity buf size
 const K: usize = 256;
@@ -61,7 +65,7 @@ pub struct UserSecretKey {
 
 /// Encrypted message. Can only be decrypted with a corresponding user secret key.
 /// Also known as CT_{id}
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct CipherText {
     c0: [G1Affine; 2],
     c1: [G1Affine; 2],
@@ -73,127 +77,152 @@ pub struct CipherText {
 pub struct Identity(pub [u8; N_BYTE_LEN]);
 
 /// A message that can be encrypted using the PKE.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Message(Gt);
+pub type Message = Gt;
 
-/// Generate a keypair used by the Private Key Generator (PKG).
-pub fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
-    let g1 = G1Affine::generator();
-    let g2 = G2Affine::generator();
+pub struct CGW;
 
-    let a = [rand_scalar(rng), rand_scalar(rng)];
-    let b = [rand_scalar(rng), rand_scalar(rng)];
+impl IBE for CGW {
+    type Pk = PublicKey;
+    type Sk = SecretKey;
+    type Usk = UserSecretKey;
+    type Ct = CipherText;
+    type Message = Message;
+    type Id = Identity;
+    type RngBytes = [u8; 64];
 
-    let w0 = [
-        [rand_scalar(rng), rand_scalar(rng)],
-        [rand_scalar(rng), rand_scalar(rng)],
-    ];
+    const PK_BYTES: usize = PK_BYTES;
+    const SK_BYTES: usize = SK_BYTES;
+    const USK_BYTES: usize = USK_BYTES;
+    const CT_BYTES: usize = CT_BYTES;
+    const MSG_BYTES: usize = MSG_BYTES;
 
-    let w1 = [
-        [rand_scalar(rng), rand_scalar(rng)],
-        [rand_scalar(rng), rand_scalar(rng)],
-    ];
+    /// Generate a keypair used by the Private Key Generator (PKG).
+    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+        let g1 = G1Affine::generator();
+        let g2 = G2Affine::generator();
 
-    let k = [rand_scalar(rng), rand_scalar(rng)];
+        let a = [rand_scalar(rng), rand_scalar(rng)];
+        let b = [rand_scalar(rng), rand_scalar(rng)];
 
-    let w0ta = [
-        w0[0][0] * a[0] + w0[1][0] * a[1],
-        w0[0][1] * a[0] + w0[1][1] * a[1],
-    ];
-    let w1ta = [
-        w1[0][0] * a[0] + w1[1][0] * a[1],
-        w1[0][1] * a[0] + w1[1][1] * a[1],
-    ];
+        let w0 = [
+            [rand_scalar(rng), rand_scalar(rng)],
+            [rand_scalar(rng), rand_scalar(rng)],
+        ];
 
-    let batch = [
-        g1 * a[0],
-        g1 * a[1],
-        g1 * w0ta[0],
-        g1 * w0ta[1],
-        g1 * w1ta[0],
-        g1 * w1ta[1],
-    ];
+        let w1 = [
+            [rand_scalar(rng), rand_scalar(rng)],
+            [rand_scalar(rng), rand_scalar(rng)],
+        ];
 
-    let mut out = [G1Affine::default(); 6];
-    G1Projective::batch_normalize(&batch, &mut out);
-    let kta_t = pairing(&g1, &g2) * (k[0] * a[0] + k[1] * a[1]);
+        let k = [rand_scalar(rng), rand_scalar(rng)];
 
-    (
-        PublicKey {
-            a_1: [out[0], out[1]],
-            w0ta_1: [out[2], out[3]],
-            w1ta_1: [out[4], out[5]],
-            kta_t,
-        },
-        SecretKey { b, k, w0, w1 },
-    )
-}
+        let w0ta = [
+            w0[0][0] * a[0] + w0[1][0] * a[1],
+            w0[0][1] * a[0] + w0[1][1] * a[1],
+        ];
+        let w1ta = [
+            w1[0][0] * a[0] + w1[1][0] * a[1],
+            w1[0][1] * a[0] + w1[1][1] * a[1],
+        ];
 
-/// Extract a user secret key for a given identity.
-pub fn extract_usk<R: Rng>(sk: &SecretKey, v: &Identity, rng: &mut R) -> UserSecretKey {
-    let g2 = G2Affine::generator();
-    let r = rand_scalar(rng);
-    let id = v.to_scalar();
+        let batch = [
+            g1 * a[0],
+            g1 * a[1],
+            g1 * w0ta[0],
+            g1 * w0ta[1],
+            g1 * w1ta[0],
+            g1 * w1ta[1],
+        ];
 
-    let br = [sk.b[0] * r, sk.b[1] * r];
+        let mut out = [G1Affine::default(); 6];
+        G1Projective::batch_normalize(&batch, &mut out);
+        let kta_t = pairing(&g1, &g2) * (k[0] * a[0] + k[1] * a[1]);
 
-    let batch = [
-        g2 * br[0],
-        g2 * br[1],
-        g2 * -(sk.k[0]
-            + (br[0] * sk.w0[0][0]
-                + br[1] * sk.w0[0][1]
-                + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
-        g2 * -(sk.k[1]
-            + (br[0] * sk.w0[1][0]
-                + br[1] * sk.w0[1][1]
-                + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
-    ];
-    let mut out = [G2Affine::default(); 4];
-    G2Projective::batch_normalize(&batch, &mut out);
-
-    UserSecretKey {
-        d0: [out[0], out[1]],
-        d1: [out[2], out[3]],
+        (
+            PublicKey {
+                a_1: [out[0], out[1]],
+                w0ta_1: [out[2], out[3]],
+                w1ta_1: [out[4], out[5]],
+                kta_t,
+            },
+            SecretKey { b, k, w0, w1 },
+        )
     }
-}
 
-/// Encrypt a message using the PKG public key and an identity.
-pub fn encrypt(pk: &PublicKey, v: &Identity, message: &Message, rng: &[u8; 64]) -> CipherText {
-    let s = Scalar::from_bytes_wide(rng);
-    let id = v.to_scalar();
+    /// Extract a user secret key for a given identity.
+    fn extract_usk<R: Rng>(
+        _opk: Option<&Self::Pk>,
+        sk: &SecretKey,
+        v: &Identity,
+        rng: &mut R,
+    ) -> UserSecretKey {
+        let g2 = G2Affine::generator();
+        let r = rand_scalar(rng);
+        let id = v.to_scalar();
 
-    let batch = [
-        pk.a_1[0] * s,
-        pk.a_1[1] * s,
-        (pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * id)),
-        (pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * id)),
-    ];
+        let br = [sk.b[0] * r, sk.b[1] * r];
 
-    let mut out = [G1Affine::default(); 4];
-    G1Projective::batch_normalize(&batch, &mut out);
+        let batch = [
+            g2 * br[0],
+            g2 * br[1],
+            g2 * -(sk.k[0]
+                + (br[0] * sk.w0[0][0]
+                    + br[1] * sk.w0[0][1]
+                    + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
+            g2 * -(sk.k[1]
+                + (br[0] * sk.w0[1][0]
+                    + br[1] * sk.w0[1][1]
+                    + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
+        ];
+        let mut out = [G2Affine::default(); 4];
+        G2Projective::batch_normalize(&batch, &mut out);
 
-    let cprime = pk.kta_t * s + message.0;
-
-    CipherText {
-        c0: [out[0], out[1]],
-        c1: [out[2], out[3]],
-        cprime,
+        UserSecretKey {
+            d0: [out[0], out[1]],
+            d1: [out[2], out[3]],
+        }
     }
-}
 
-/// Derive the same message from the CipherText using a UserSecretKey.
-pub fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Message {
-    let m = ct.cprime
-        + multi_miller_loop(&[
-            (&ct.c0[0], &G2Prepared::from(usk.d1[0])),
-            (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
-            (&ct.c1[0], &G2Prepared::from(usk.d0[0])),
-            (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
-        ])
-        .final_exponentiation();
+    /// Encrypt a message using the PKG public key and an identity.
+    fn encrypt(
+        pk: &PublicKey,
+        v: &Identity,
+        message: &Message,
+        rng: &Self::RngBytes,
+    ) -> CipherText {
+        let s = Scalar::from_bytes_wide(rng);
+        let id = v.to_scalar();
 
-    Message(m)
+        let batch = [
+            pk.a_1[0] * s,
+            pk.a_1[1] * s,
+            (pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * id)),
+            (pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * id)),
+        ];
+
+        let mut out = [G1Affine::default(); 4];
+        G1Projective::batch_normalize(&batch, &mut out);
+
+        let cprime = pk.kta_t * s + message;
+
+        CipherText {
+            c0: [out[0], out[1]],
+            c1: [out[2], out[3]],
+            cprime,
+        }
+    }
+
+    /// Derive the same message from the CipherText using a UserSecretKey.
+    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Message {
+        ct.cprime
+            + multi_miller_loop(&[
+                (&ct.c0[0], &G2Prepared::from(usk.d1[0])),
+                (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
+                (&ct.c1[0], &G2Prepared::from(usk.d0[0])),
+                (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
+            ])
+            .final_exponentiation()
+    }
 }
 
 impl Identity {
@@ -226,40 +255,24 @@ impl Clone for Identity {
 
 impl Copy for Identity {}
 
-impl Message {
-    pub fn random<R: Rng>(rng: &mut R) -> Self {
-        Self(rand_gt(rng))
+impl Compressable for Message {
+    const OUTPUT_SIZE: usize = GT_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; GT_BYTES] {
+        self.to_compressed()
     }
 
-    pub fn to_bytes(&self) -> [u8; GT_BYTES] {
-        self.0.to_compressed()
-    }
-
-    pub fn from_bytes(bytes: &[u8; GT_BYTES]) -> CtOption<Self> {
-        Gt::from_compressed(bytes).map(Self)
-    }
-}
-
-impl Default for Message {
-    fn default() -> Self {
-        Message(Gt::default())
+    fn from_bytes(bytes: &[u8; GT_BYTES]) -> CtOption<Self> {
+        Self::from_compressed(bytes)
     }
 }
 
-impl ConstantTimeEq for Message {
-    fn ct_eq(&self, other: &Self) -> Choice {
-        self.0.ct_eq(&other.0)
-    }
-}
+impl Compressable for PublicKey {
+    const OUTPUT_SIZE: usize = PK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
 
-impl ConditionallySelectable for Message {
-    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
-        Message(Gt::conditional_select(&a.0, &b.0, choice))
-    }
-}
-
-impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PK_BYTES] {
+    fn to_bytes(&self) -> [u8; PK_BYTES] {
         let mut res = [0u8; PK_BYTES];
 
         for i in 0..2 {
@@ -274,7 +287,7 @@ impl PublicKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
         // from_compressed_unchecked doesn't check whether the element has
         // a cofactor. To mount an attack using a cofactor an attacker
         // must be able to manipulate the public parameters. But then the
@@ -317,8 +330,11 @@ impl PublicKey {
     }
 }
 
-impl SecretKey {
-    pub fn to_bytes(&self) -> [u8; SK_BYTES] {
+impl Compressable for SecretKey {
+    const OUTPUT_SIZE: usize = SK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; SK_BYTES] {
         let mut res = [0u8; SK_BYTES];
         let (mut x, mut y);
 
@@ -339,7 +355,7 @@ impl SecretKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
         let mut b = [Scalar::default(); 2];
         let mut k = [Scalar::default(); 2];
         let mut w0 = [[Scalar::default(); 2]; 2];
@@ -371,8 +387,11 @@ impl SecretKey {
     }
 }
 
-impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; USK_BYTES] {
+impl Compressable for UserSecretKey {
+    const OUTPUT_SIZE: usize = USK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; USK_BYTES] {
         let mut res = [0u8; USK_BYTES];
         let (d00, d01, d10, d11) =
             mut_array_refs![&mut res, G2_BYTES, G2_BYTES, G2_BYTES, G2_BYTES];
@@ -385,7 +404,7 @@ impl UserSecretKey {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
         let (d00, d01, d10, d11) = array_refs![bytes, G2_BYTES, G2_BYTES, G2_BYTES, G2_BYTES];
 
         let d00 = G2Affine::from_compressed(d00);
@@ -406,8 +425,11 @@ impl UserSecretKey {
     }
 }
 
-impl CipherText {
-    pub fn to_bytes(&self) -> [u8; CT_BYTES] {
+impl Compressable for CipherText {
+    const OUTPUT_SIZE: usize = CT_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; CT_BYTES] {
         let mut res = [0u8; CT_BYTES];
         let (c00, c01, c10, c11, cprime) =
             mut_array_refs![&mut res, G1_BYTES, G1_BYTES, G1_BYTES, G1_BYTES, GT_BYTES];
@@ -421,7 +443,7 @@ impl CipherText {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
         let (c00, c01, c10, c11, cprime) =
             array_refs![bytes, G1_BYTES, G1_BYTES, G1_BYTES, G1_BYTES, GT_BYTES];
 
@@ -499,61 +521,5 @@ impl ConditionallySelectable for UserSecretKey {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    const ID: &'static [u8] = b"email:w.geraedts@sarif.nl";
-
-    #[allow(dead_code)]
-    struct DefaultSubResults {
-        pk: PublicKey,
-        sk: SecretKey,
-        usk: UserSecretKey,
-        c: CipherText,
-        m: Message,
-    }
-
-    fn perform_default() -> DefaultSubResults {
-        use rand::RngCore;
-        let mut rng = rand::thread_rng();
-
-        let kid = Identity::derive(ID);
-
-        let (pk, sk) = setup(&mut rng);
-        let usk = extract_usk(&sk, &kid, &mut rng);
-
-        let m = Message::random(&mut rng);
-
-        let mut rand_bytes = [0u8; 64];
-        rng.fill_bytes(&mut rand_bytes);
-
-        let c = encrypt(&pk, &kid, &m, &rand_bytes);
-
-        DefaultSubResults { pk, sk, usk, c, m }
-    }
-
-    #[test]
-    fn eq_encrypt_decrypt() {
-        let results = perform_default();
-        let m2 = decrypt(&results.usk, &results.c);
-
-        assert_eq!(results.m, m2);
-    }
-    #[test]
-    fn eq_serialize_deserialize() {
-        let result = perform_default();
-
-        assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
-        assert_eq!(
-            result.sk,
-            SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.usk,
-            UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.c,
-            CipherText::from_bytes(&result.c.to_bytes()).unwrap()
-        );
-    }
+    test_ibe!(CGW);
 }

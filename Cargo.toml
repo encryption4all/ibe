@@ -11,7 +11,7 @@ categories = ["cryptography", "no-std"]
 
 [dependencies]
 rand = "0.8.4"
-tiny-keccak = { version = "2.0.2", features = ["sha3"] }
+tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
 arrayref = "0.3.6"
 irmaseal-curve = { git = "https://github.com/encryption4all/irmaseal-curve.git" }
 group = "0.10.0"
