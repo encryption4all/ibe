@@ -51,6 +51,15 @@ macro_rules! bench_kem {
                 },
             );
             criterion.bench_function(
+                &format!("{} multi-encaps x10", stringify!($scheme_name)).to_string(),
+                move |b| {
+                    let mut rng = rand::thread_rng();
+                    b.iter(|| {
+                        $struct_name::multi_encaps(black_box(&pk), black_box(&[&kid; 10]), &mut rng)
+                    })
+                },
+            );
+            criterion.bench_function(
                 &format!("{} decaps", stringify!($scheme_name)).to_string(),
                 move |b| {
                     b.iter(|| {
