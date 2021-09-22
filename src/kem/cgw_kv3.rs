@@ -418,12 +418,12 @@ impl Compressable for SecretKey {
         let mut wprime = [Scalar::default(); 2];
 
         let mut is_some = Choice::from(1u8);
+        is_some &= Scalar::from_bytes(&bytes[0..32].try_into().unwrap())
+            .map(|s| alpha = s)
+            .is_some();
         for i in 0..2 {
             let x = i * SCALAR_BYTES;
             let y = x + SCALAR_BYTES;
-            is_some &= Scalar::from_bytes(&bytes[0..32].try_into().unwrap())
-                .map(|s| alpha = s)
-                .is_some();
             is_some &= Scalar::from_bytes(&bytes[32 + x..32 + y].try_into().unwrap())
                 .map(|s| b[i] = s)
                 .is_some();
