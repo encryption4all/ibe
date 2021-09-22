@@ -16,21 +16,21 @@ macro_rules! bench_kem {
 
             // let ppk = pk.to_bytes();
             // criterion.bench_function(
-            //     &format!("{} unpack_pk", stringify!($scheme_name)).to_string(),
+            //     &format!("kem_{} unpack_pk", stringify!($scheme_name)).to_string(),
             //     |b| b.iter(|| PublicKey::from_bytes(&ppk)),
             // );
 
             let (c, _k) = $struct_name::encaps(&pk, &kid, &mut rng);
 
             criterion.bench_function(
-                &format!("{} setup", stringify!($scheme_name)).to_string(),
+                &format!("kem_{} setup", stringify!($scheme_name)).to_string(),
                 |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| $struct_name::setup(&mut rng))
                 },
             );
             criterion.bench_function(
-                &format!("{} extract", stringify!($scheme_name)).to_string(),
+                &format!("kem_{} extract", stringify!($scheme_name)).to_string(),
                 move |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| {
@@ -44,14 +44,14 @@ macro_rules! bench_kem {
                 },
             );
             criterion.bench_function(
-                &format!("{} encaps", stringify!($scheme_name)).to_string(),
+                &format!("kem_{} encaps", stringify!($scheme_name)).to_string(),
                 move |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| $struct_name::encaps(black_box(&pk), black_box(&kid), &mut rng))
                 },
             );
             criterion.bench_function(
-                &format!("{} multi-encaps x10", stringify!($scheme_name)).to_string(),
+                &format!("kem_{} multi-encaps x10", stringify!($scheme_name)).to_string(),
                 move |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| {
@@ -60,7 +60,7 @@ macro_rules! bench_kem {
                 },
             );
             criterion.bench_function(
-                &format!("{} decaps", stringify!($scheme_name)).to_string(),
+                &format!("kem_{} decaps", stringify!($scheme_name)).to_string(),
                 move |b| {
                     b.iter(|| {
                         $struct_name::decaps(black_box(Some(&pk)), black_box(&usk), black_box(&c))
@@ -89,7 +89,7 @@ macro_rules! bench_ibe {
 
             // let ppk = pk.to_bytes();
             // criterion.bench_function(
-            //     &format!("{} unpack_pk", stringify!($scheme_name)).to_string(),
+            //     &format!("ibe_{} unpack_pk", stringify!($scheme_name)).to_string(),
             //     |b| b.iter(|| PublicKey::from_bytes(&ppk)),
             // );
 
@@ -101,14 +101,14 @@ macro_rules! bench_ibe {
             let c = $struct_name::encrypt(&pk, &kid, &m, &rand_bytes);
 
             criterion.bench_function(
-                &format!("{} setup", stringify!($scheme_name)).to_string(),
+                &format!("ibe_{} setup", stringify!($scheme_name)).to_string(),
                 |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| $struct_name::setup(&mut rng))
                 },
             );
             criterion.bench_function(
-                &format!("{} extract", stringify!($scheme_name)).to_string(),
+                &format!("ibe_{} extract", stringify!($scheme_name)).to_string(),
                 move |b| {
                     let mut rng = rand::thread_rng();
                     b.iter(|| {
@@ -122,7 +122,7 @@ macro_rules! bench_ibe {
                 },
             );
             criterion.bench_function(
-                &format!("{} encrypt", stringify!($scheme_name)).to_string(),
+                &format!("ibe_{} encrypt", stringify!($scheme_name)).to_string(),
                 move |b| {
                     b.iter(|| {
                         $struct_name::encrypt(
@@ -135,7 +135,7 @@ macro_rules! bench_ibe {
                 },
             );
             criterion.bench_function(
-                &format!("{} decrypt", stringify!($scheme_name)).to_string(),
+                &format!("ibe_{} decrypt", stringify!($scheme_name)).to_string(),
                 move |b| b.iter(|| $struct_name::decrypt(black_box(&usk), black_box(&c))),
             );
         }
