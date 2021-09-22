@@ -19,7 +19,7 @@ pub mod waters_naccache;
 
 use crate::Compressable;
 use group::Group;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 
 /// Identity-based public key encryption scheme (IBPKE)
 pub trait IBE {
@@ -52,12 +52,12 @@ pub trait IBE {
     const MSG_BYTES: usize;
 
     /// Creates a MSK, MPK pair
-    fn setup<R: Rng>(rng: &mut R) -> (Self::Pk, Self::Sk);
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
 
     /// Extract a user secret key for an identity using the MSK
     ///
     /// Optionally requires the system's public key
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         pk: Option<&Self::Pk>,
         s: &Self::Sk,
         id: &Self::Id,

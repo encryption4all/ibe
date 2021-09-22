@@ -15,7 +15,7 @@ use crate::pke::cgw::{
 use crate::{kem::IBKEM, pke::IBE, Compressable};
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use subtle::{ConditionallySelectable, ConstantTimeEq, CtOption};
 use tiny_keccak::{Hasher, Sha3, Shake};
 
@@ -96,11 +96,11 @@ impl IBKEM for CGWFO {
     const SK_BYTES: usize = SK_BYTES;
     const CT_BYTES: usize = CT_BYTES;
 
-    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         CGW::setup(rng)
     }
 
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         _pk: Option<&PublicKey>,
         sk: &SecretKey,
         id: &Identity,
@@ -112,7 +112,7 @@ impl IBKEM for CGWFO {
         UserSecretKey { usk, s, id: *id }
     }
 
-    fn multi_encaps<R: Rng, const N: usize>(
+    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
         pk: &Self::Pk,
         ids: &[&Self::Id; N],
         rng: &mut R,

@@ -6,7 +6,7 @@ use crate::util::*;
 use crate::{kem::IBKEM, Compressable};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 const K: usize = 256;
@@ -98,7 +98,7 @@ impl IBKEM for KV1 {
     const CT_BYTES: usize = CT_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g: G2Affine = rand_g2(rng).into();
 
         let alpha: G1Affine = rand_g1(rng).into();
@@ -118,7 +118,7 @@ impl IBKEM for KV1 {
     }
 
     /// Extract an user secret key for a given identity.
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         opk: Option<&PublicKey>,
         sk: &SecretKey,
         v: &Identity,
@@ -134,7 +134,7 @@ impl IBKEM for KV1 {
         UserSecretKey { d1, d2, d3 }
     }
 
-    fn multi_encaps<R: Rng, const N: usize>(
+    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
         pk: &Self::Pk,
         ids: &[&Self::Id; N],
         rng: &mut R,

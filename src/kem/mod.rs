@@ -13,7 +13,7 @@ pub mod cgw_kv3;
 pub mod kiltz_vahlis_one;
 
 use crate::Compressable;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 
 /// Identity-based public key encapsulation mechanism (IBKEM)
 pub trait IBKEM {
@@ -42,12 +42,12 @@ pub trait IBKEM {
     const CT_BYTES: usize;
 
     /// Creates a MSK, MPK pair
-    fn setup<R: Rng>(rng: &mut R) -> (Self::Pk, Self::Sk);
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
 
     /// Extract a user secret key for an identity using the MSK
     ///
     /// Optionally requires the system's public key
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         pk: Option<&Self::Pk>,
         sk: &Self::Sk,
         id: &Self::Id,
@@ -55,7 +55,11 @@ pub trait IBKEM {
     ) -> Self::Usk;
 
     /// Encapsulate a shared secret using MPK and an identity
-    fn encaps<R: Rng>(pk: &Self::Pk, id: &Self::Id, rng: &mut R) -> (Self::Ct, Self::Ss) {
+    fn encaps<R: Rng + CryptoRng>(
+        pk: &Self::Pk,
+        id: &Self::Id,
+        rng: &mut R,
+    ) -> (Self::Ct, Self::Ss) {
         let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
         (cts[0], k)
     }
@@ -66,7 +70,7 @@ pub trait IBKEM {
     ///
     /// # Warning
     /// Not all schemes hide the identity associated with each ciphertext.
-    fn multi_encaps<R: Rng, const N: usize>(
+    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
         pk: &Self::Pk,
         ids: &[&Self::Id; N],
         rng: &mut R,

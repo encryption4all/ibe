@@ -7,7 +7,7 @@ use crate::util::*;
 use crate::{pke::IBE, Compressable};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 #[allow(unused_imports)]
@@ -108,7 +108,7 @@ impl IBE for WatersNaccache {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g: G1Affine = rand_g1(rng).into();
 
         let alpha = rand_scalar(rng);
@@ -138,7 +138,7 @@ impl IBE for WatersNaccache {
     }
 
     /// Extract an user secret key for a given identity.
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         opk: Option<&PublicKey>,
         sk: &SecretKey,
         v: &Identity,

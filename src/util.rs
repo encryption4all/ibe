@@ -1,21 +1,26 @@
 use group::{ff::Field, Group};
-use irmaseal_curve::{G1Projective, G2Projective, Scalar};
-use rand::RngCore;
+use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
+use rand::{CryptoRng, RngCore};
 use tiny_keccak::Hasher;
 
 #[inline(always)]
-pub fn rand_scalar<R: RngCore>(rng: &mut R) -> Scalar {
+pub fn rand_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> Scalar {
     Scalar::random(rng)
 }
 
 #[inline(always)]
-pub fn rand_g1<R: RngCore>(rng: &mut R) -> G1Projective {
+pub fn rand_g1<R: RngCore + CryptoRng>(rng: &mut R) -> G1Projective {
     G1Projective::random(rng)
 }
 
 #[inline(always)]
-pub fn rand_g2<R: RngCore>(rng: &mut R) -> G2Projective {
+pub fn rand_g2<R: RngCore + CryptoRng>(rng: &mut R) -> G2Projective {
     G2Projective::random(rng)
+}
+
+#[inline(always)]
+pub fn rand_gt<R: RngCore + CryptoRng>(rng: &mut R) -> Gt {
+    Gt::random(rng)
 }
 
 pub fn bits<'a>(slice: &'a [u8]) -> impl Iterator<Item = subtle::Choice> + 'a {

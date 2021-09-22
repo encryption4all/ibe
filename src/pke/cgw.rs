@@ -11,7 +11,7 @@ use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 #[allow(unused_imports)]
@@ -97,7 +97,7 @@ impl IBE for CGW {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g1 = G1Affine::generator();
         let g2 = G2Affine::generator();
 
@@ -150,7 +150,7 @@ impl IBE for CGW {
     }
 
     /// Extract a user secret key for a given identity.
-    fn extract_usk<R: Rng>(
+    fn extract_usk<R: Rng + CryptoRng>(
         _opk: Option<&Self::Pk>,
         sk: &SecretKey,
         v: &Identity,
