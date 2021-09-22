@@ -151,6 +151,7 @@ bench_kem!(cgw_fo, bench_kem_cgw_fo, CGWFO);
 bench_ibe!(boyen_waters, bench_ibe_boyen_waters, BoyenWaters);
 bench_ibe!(waters, bench_ibe_waters, Waters);
 bench_ibe!(waters_naccache, bench_ibe_waters_naccache, WatersNaccache);
+bench_ibe!(cgw, bench_ibe_cgw, CGW);
 
 criterion_group!(
     name = kem_benches;
@@ -170,6 +171,7 @@ criterion_group!(
     bench_ibe_waters,
     bench_ibe_waters_naccache,
     bench_ibe_boyen_waters,
+    bench_ibe_cgw,
 );
 
 criterion_main!(pke_benches, kem_benches);
