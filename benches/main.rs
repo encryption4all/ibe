@@ -142,33 +142,34 @@ macro_rules! bench_ibe {
     };
 }
 
-bench_kem!(kiltz_vahlis_one, criterion_kiltz_vahlis_one_benchmark, KV1);
-bench_kem!(cgw_kv1, criterion_cgw_kem_kv1_benchmark, CGWKV1);
-bench_kem!(cgw_kv2, criterion_cgw_kem_kv2_benchmark, CGWKV2);
-bench_kem!(cgw_kv3, criterion_cgw_kem_kv3_benchmark, CGWKV3);
-bench_kem!(cgw_fo, criterion_cgw_kem_fo_benchmark, CGWFO);
+bench_kem!(kiltz_vahlis_one, bench_kem_kiltz_vahlis_one, KV1);
+bench_kem!(cgw_kv1, bench_kem_cgw_kv1, CGWKV1);
+bench_kem!(cgw_kv2, bench_kem_cgw_kv2, CGWKV2);
+bench_kem!(cgw_kv3, bench_kem_cgw_kv3, CGWKV3);
+bench_kem!(cgw_fo, bench_kem_cgw_fo, CGWFO);
 
-bench_ibe!(
-    boyen_waters,
-    criterion_boyen_waters_ibe_benchmark,
-    BoyenWaters
-);
-bench_ibe!(waters, criterion_waters_ibe_benchmark, Waters);
-bench_ibe!(
-    waters_naccache,
-    criterion_waters_naccache_ibe_benchmark,
-    WatersNaccache
+bench_ibe!(boyen_waters, bench_ibe_boyen_waters, BoyenWaters);
+bench_ibe!(waters, bench_ibe_waters, Waters);
+bench_ibe!(waters_naccache, bench_ibe_waters_naccache, WatersNaccache);
+
+criterion_group!(
+    name = kem_benches;
+    config = Criterion::default().sample_size(10);
+    targets =
+    bench_kem_kiltz_vahlis_one,
+    bench_kem_cgw_fo,
+    bench_kem_cgw_kv1,
+    bench_kem_cgw_kv2,
+    bench_kem_cgw_kv3,
 );
 
 criterion_group!(
-    benches,
-    criterion_waters_ibe_benchmark,
-    criterion_waters_naccache_ibe_benchmark,
-    criterion_boyen_waters_ibe_benchmark,
-    criterion_kiltz_vahlis_one_benchmark,
-    criterion_cgw_kem_fo_benchmark,
-    criterion_cgw_kem_kv1_benchmark,
-    criterion_cgw_kem_kv2_benchmark,
-    criterion_cgw_kem_kv3_benchmark,
+    name = pke_benches;
+    config = Criterion::default().sample_size(10);
+    targets =
+    bench_ibe_waters,
+    bench_ibe_waters_naccache,
+    bench_ibe_boyen_waters,
 );
-criterion_main!(benches);
+
+criterion_main!(pke_benches, kem_benches);
