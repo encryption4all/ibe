@@ -32,7 +32,7 @@ const SCALAR_BYTES: usize = 32;
 pub const PK_BYTES: usize = 8 * G1_BYTES + GT_BYTES;
 pub const SK_BYTES: usize = 15 * SCALAR_BYTES;
 pub const USK_BYTES: usize = 6 * G2_BYTES;
-pub const CT_BYTES: usize = 5 * G1_BYTES;
+pub const CT_BYTES: usize = 5 * G1_BYTES + GT_BYTES;
 
 pub struct CGWKV3;
 
@@ -75,6 +75,7 @@ pub struct CipherText {
     c0: [G1Affine; 2],
     c1: [G1Affine; 2],
     c2: G1Affine,
+    cprime: Gt,
 }
 
 /// Hashed byte representation of an identity.
@@ -221,14 +222,16 @@ impl IBKEM for CGWKV3 {
         ids: &[&Self::Id; N],
         rng: &mut R,
     ) -> ([Self::Ct; N], Self::Ss) {
-        let s = rand_scalar(rng);
-        let k = pk.kta_t * s;
+        let k = rand_gt(rng);
 
         let mut cts = [Self::Ct::default(); N];
         for (i, id) in ids.iter().enumerate() {
+            let s = rand_scalar(rng);
             let x = id.to_scalar();
             let pre_y: G1Affine = (pk.a_1[0] * s).into();
             let y = hash_g1_to_scalar(pre_y);
+
+            let cprime = pk.kta_t * s + k;
 
             let batch = [
                 (pk.a_1[1] * s),
@@ -244,6 +247,7 @@ impl IBKEM for CGWKV3 {
                 c0: [pre_y, out[0]],  // C_i
                 c1: [out[1], out[2]], // C'_i
                 c2: out[3],           // C''
+                cprime,
             }
         }
 
@@ -255,21 +259,22 @@ impl IBKEM for CGWKV3 {
         let y = hash_g1_to_scalar(ct.c0[0]);
         let z: G2Affine = (usk.d2[0] + (usk.d2[1] * y)).into();
 
-        let k = multi_miller_loop(&[
-            (
-                &ct.c0[0],
-                &G2Prepared::from(G2Affine::from(usk.d1[0] + G2Projective::from(z))),
-            ),
-            (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
-            (
-                &G1Affine::from(ct.c1[0] + G1Projective::from(ct.c2)),
-                &G2Prepared::from(usk.d0[0]),
-            ),
-            (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
-        ])
-        .final_exponentiation();
+        let m = ct.cprime
+            - multi_miller_loop(&[
+                (
+                    &ct.c0[0],
+                    &G2Prepared::from(G2Affine::from(usk.d1[0] + G2Projective::from(z))),
+                ),
+                (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
+                (
+                    &G1Affine::from(ct.c1[0] + G1Projective::from(ct.c2)),
+                    &G2Prepared::from(usk.d0[0]),
+                ),
+                (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
+            ])
+            .final_exponentiation();
 
-        SharedSecret(k)
+        SharedSecret(m)
     }
 }
 
@@ -514,7 +519,8 @@ impl Compressable for CipherText {
             res[x..y].copy_from_slice(&self.c0[i].to_compressed());
             res[96 + x..96 + y].copy_from_slice(&self.c1[i].to_compressed());
         }
-        res[192..].copy_from_slice(&self.c2.to_compressed());
+        res[192..240].copy_from_slice(&self.c2.to_compressed());
+        res[240..].copy_from_slice(&self.cprime.to_compressed());
 
         res
     }
@@ -523,6 +529,7 @@ impl Compressable for CipherText {
         let mut c0 = [G1Affine::default(); 2];
         let mut c1 = [G1Affine::default(); 2];
         let mut c2 = G1Affine::default();
+        let mut cprime = Gt::default();
 
         let mut is_some = Choice::from(1u8);
         for i in 0..2 {
@@ -535,11 +542,14 @@ impl Compressable for CipherText {
                 .map(|el| c1[i] = el)
                 .is_some();
         }
-        is_some &= G1Affine::from_compressed(&bytes[192..].try_into().unwrap())
+        is_some &= G1Affine::from_compressed(&bytes[192..240].try_into().unwrap())
             .map(|el| c2 = el)
             .is_some();
+        is_some &= Gt::from_compressed(&bytes[240..].try_into().unwrap())
+            .map(|el| cprime = el)
+            .is_some();
 
-        CtOption::new(CipherText { c0, c1, c2 }, is_some)
+        CtOption::new(CipherText { c0, c1, c2, cprime }, is_some)
     }
 }
 
