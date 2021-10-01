@@ -51,6 +51,16 @@ pub fn sha3_512(slice: &[u8]) -> [u8; 64] {
     buf
 }
 
+pub fn shake256<const N: usize>(slice: &[u8]) -> [u8; N] {
+    let mut digest = tiny_keccak::Shake::v256();
+    digest.update(slice);
+
+    let mut buf = [0u8; N];
+    digest.finalize(&mut buf);
+
+    buf
+}
+
 #[cfg(test)]
 #[macro_use]
 mod test_macros {
