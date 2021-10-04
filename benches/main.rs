@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::time::Duration;
 
 macro_rules! bench_kem {
     ($scheme_name: ident, $fn_name: ident, $struct_name: ident) => {
@@ -155,7 +156,7 @@ bench_ibe!(cgw, bench_ibe_cgw, CGW);
 
 criterion_group!(
     name = kem_benches;
-    config = Criterion::default().sample_size(10);
+    config = Criterion::default().sample_size(10).warm_up_time(Duration::new(0, 500));
     targets =
     bench_kem_kiltz_vahlis_one,
     bench_kem_cgw_fo,
@@ -166,7 +167,7 @@ criterion_group!(
 
 criterion_group!(
     name = pke_benches;
-    config = Criterion::default().sample_size(10);
+    config = Criterion::default().sample_size(10).warm_up_time(Duration::new(0, 500));
     targets =
     bench_ibe_waters,
     bench_ibe_waters_naccache,
