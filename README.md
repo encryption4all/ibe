@@ -1,6 +1,6 @@
 # IBE
 Collection of Identity Based Encryption (IBE) schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) in Rust.
-This crate contains both public-key encryption schemes (PKEs, see `src/pke`) and key encapsulation mechanisms (KEMs, see `src/kem`). References to papers appear in the respective source files.
+This crate contains both identity-based encryption schemes (IBEs, see `src/pke`) and identity-based key encapsulation mechanisms (IBKEMs, see `src/kem`). References to papers appear in the respective source files.
 
 This crate contains the following schemes (in chronological order of publication):
 * Waters (IND-ID-CPA IBE),
