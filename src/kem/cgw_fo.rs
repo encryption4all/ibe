@@ -9,44 +9,25 @@
 //!
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
-use crate::pke::cgw::{
-    CipherText, Message, CGW, MSG_BYTES, N_BYTE_LEN, USK_BYTES as CPA_USK_BYTES,
-};
-use crate::{kem::IBKEM, pke::IBE, Compressable};
+use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
+use crate::pke::cgw::{CipherText, Message, CGW, N_BYTE_LEN, USK_BYTES as CPA_USK_BYTES};
+use crate::pke::IBE;
+use crate::util::sha3_512;
+use crate::Compressable;
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
 use rand::{CryptoRng, Rng};
-use subtle::{ConditionallySelectable, ConstantTimeEq, CtOption};
-use tiny_keccak::{Hasher, Sha3, Shake};
+use subtle::{ConstantTimeEq, CtOption};
 
 /// These struct are identical for the CCA KEM
 pub use crate::pke::cgw::{Identity, PublicKey, SecretKey, CT_BYTES, PK_BYTES, SK_BYTES};
 
 /// The USK includes a random message and the identity (needed for re-encryption)
-pub const USK_BYTES: usize = CPA_USK_BYTES + MSG_BYTES + N_BYTE_LEN;
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SharedSecret([u8; 64]);
-
-impl SharedSecret {
-    pub fn to_bytes(&self) -> [u8; 64] {
-        self.0
-    }
-
-    pub fn from_bytes(bytes: &[u8; 64]) -> Self {
-        Self(*bytes)
-    }
-
-    #[cfg(test)]
-    pub fn unwrap(&self) -> Self {
-        *self
-    }
-}
+pub const USK_BYTES: usize = CPA_USK_BYTES + N_BYTE_LEN;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UserSecretKey {
     usk: crate::pke::cgw::UserSecretKey,
-    s: Message,
     id: Identity,
 }
 
@@ -56,28 +37,21 @@ impl Compressable for UserSecretKey {
 
     fn to_bytes(&self) -> [u8; USK_BYTES] {
         let mut buf = [0u8; USK_BYTES];
-        let (usk, s, id) = mut_array_refs![&mut buf, CPA_USK_BYTES, MSG_BYTES, N_BYTE_LEN];
+        let (usk, id) = mut_array_refs![&mut buf, CPA_USK_BYTES, N_BYTE_LEN];
 
         *usk = self.usk.to_bytes();
-        *s = self.s.to_bytes();
         id.copy_from_slice(&self.id.0);
 
         buf
     }
 
     fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
-        let (usk, s, id) = array_refs![&bytes, CPA_USK_BYTES, MSG_BYTES, N_BYTE_LEN];
+        let (usk, rid) = array_refs![&bytes, CPA_USK_BYTES, N_BYTE_LEN];
 
         let usk = crate::pke::cgw::UserSecretKey::from_bytes(usk);
-        let s = Message::from_bytes(s);
+        let id = Identity(*rid);
 
-        usk.and_then(|usk| {
-            s.map(|s| UserSecretKey {
-                usk,
-                s,
-                id: crate::pke::cgw::Identity(*id),
-            })
-        })
+        usk.map(|usk| UserSecretKey { usk, id: id })
     }
 }
 
@@ -107,9 +81,11 @@ impl IBKEM for CGWFO {
         rng: &mut R,
     ) -> UserSecretKey {
         let usk = CGW::extract_usk(None, sk, id, rng);
-        let s = Message::random(rng);
 
-        UserSecretKey { usk, s, id: *id }
+        UserSecretKey {
+            usk,
+            id: id.clone(),
+        }
     }
 
     fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
@@ -120,50 +96,40 @@ impl IBKEM for CGWFO {
         let mut cts = [CipherText::default(); N];
         let m = Message::random(rng);
 
-        let mut g = Sha3::v512();
-        let mut coins = [0u8; 64];
-        g.update(&m.to_bytes());
-        g.finalize(&mut coins);
-
-        let mut h = Shake::v256();
-        let mut k = [0u8; 64];
-        h.update(&m.to_bytes());
+        let coins = sha3_512(&m.to_bytes());
 
         for (i, id) in ids.iter().enumerate() {
             let c = CGW::encrypt(pk, id, &m, &coins);
-            //h.update(&c.to_bytes());
             cts[i] = c;
         }
 
-        h.finalize(&mut k);
-
-        (cts, SharedSecret(k))
+        (cts, SharedSecret::from(&m))
     }
 
-    /// Decapsulate a shared secret from the ciphertext
+    /// Decapsulate a shared secret from the ciphertext.
     ///
-    /// This version requires the system's public key due to usage the Fujisaki-Okamoto transform
-    fn decaps(opk: Option<&PublicKey>, usk: &UserSecretKey, c: &CipherText) -> SharedSecret {
+    /// This scheme **does** requires the master public key due to usage the Fujisaki-Okamoto transform.
+    /// This function panics if no master public key is provided.
+    ///
+    /// This function returns a [`DecapsulationError`] when an
+    /// illegitimate ciphertext is encountered (explicit rejection).
+    fn decaps(
+        opk: Option<&PublicKey>,
+        usk: &UserSecretKey,
+        c: &CipherText,
+    ) -> Result<SharedSecret, DecapsulationError> {
         let pk = opk.unwrap();
 
-        let mut m = CGW::decrypt(&usk.usk, c);
-
-        let mut g = Sha3::v512();
-        let mut coins = [0u8; 64];
-        g.update(&m.to_bytes());
-        g.finalize(&mut coins);
+        let m = CGW::decrypt(&usk.usk, c);
+        let coins = sha3_512(&m.to_bytes());
 
         let c2 = CGW::encrypt(pk, &usk.id, &m, &coins);
 
-        m.conditional_assign(&usk.s, !c.ct_eq(&c2));
-
-        let mut h = Shake::v256();
-        let mut k = [0u8; 64];
-        h.update(&m.to_bytes());
-        //h.update(&c.to_bytes());
-        h.finalize(&mut k);
-
-        SharedSecret(k)
+        if c.ct_eq(&c2).into() {
+            Ok(SharedSecret::from(&m))
+        } else {
+            Err(DecapsulationError)
+        }
     }
 }
 

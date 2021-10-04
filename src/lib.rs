@@ -30,7 +30,7 @@
 //! let (c, k) = KV1::encaps(&pk, &kid, &mut rng);
 //!
 //! // Decrypt the ciphertext of that message with the private key of the user.
-//! let k2 = KV1::decaps(None, &usk, &c);
+//! let k2 = KV1::decaps(None, &usk, &c).unwrap();
 //!
 //! assert_eq!(k, k2);
 //! ```
@@ -51,8 +51,8 @@ pub mod pke;
 
 use subtle::CtOption;
 
-/// Artifact that can be compressed/decrompressed.
-pub trait Compressable: Sized {
+/// Artifacts of the system that can be compressed/decrompressed/copied.
+pub trait Compressable: Copy {
     const OUTPUT_SIZE: usize;
     type Output: Sized;
     fn to_bytes(self: &Self) -> Self::Output;

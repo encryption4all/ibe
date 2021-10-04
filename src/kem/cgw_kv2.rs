@@ -7,8 +7,9 @@
 //!
 //! Important notice: Keep in mind that the security of this scheme has not formally been proven.
 
+use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
-use crate::{kem::IBKEM, Compressable};
+use crate::Compressable;
 use core::convert::TryInto;
 use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
@@ -79,12 +80,6 @@ pub struct CipherText {
 
 /// Hashed byte representation of an identity.
 pub struct Identity([u8; N_BYTE_LEN]);
-
-/// A shared secret in the target group.
-///
-/// You can use the byte representation to derive, for example, an AES key.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SharedSecret(Gt);
 
 fn hash_g1_to_scalar(g1: G1Affine) -> Scalar {
     let buf = sha3_512(&g1.to_uncompressed());
@@ -248,11 +243,17 @@ impl IBKEM for CGWKV2 {
             }
         }
 
-        (cts, SharedSecret(k))
+        (cts, SharedSecret::from(&k))
     }
 
     /// Derive the same SharedSecret from the CipherText using a UserSecretKey.
-    fn decaps(_pk: Option<&PublicKey>, usk: &UserSecretKey, ct: &CipherText) -> SharedSecret {
+    ///
+    /// This operation always implicitly rejects ciphertexts and therefore never errors.
+    fn decaps(
+        _pk: Option<&PublicKey>,
+        usk: &UserSecretKey,
+        ct: &CipherText,
+    ) -> Result<SharedSecret, DecapsulationError> {
         let y = hash_g1_to_scalar(ct.c0[0]);
         let z: G2Affine = (usk.d2[0] + (usk.d2[1] * y)).into();
 
@@ -271,7 +272,7 @@ impl IBKEM for CGWKV2 {
             ])
             .final_exponentiation();
 
-        SharedSecret(k)
+        Ok(SharedSecret::from(&k))
     }
 }
 
@@ -304,16 +305,6 @@ impl Clone for Identity {
 }
 
 impl Copy for Identity {}
-
-impl SharedSecret {
-    pub fn to_bytes(&self) -> [u8; GT_BYTES] {
-        self.0.to_compressed()
-    }
-
-    pub fn from_bytes(bytes: &[u8; GT_BYTES]) -> CtOption<Self> {
-        Gt::from_compressed(bytes).map(Self)
-    }
-}
 
 impl Compressable for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;

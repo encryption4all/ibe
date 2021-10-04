@@ -103,7 +103,7 @@ mod test_macros {
             #[test]
             fn eq_encaps_decaps() {
                 let results = perform_default();
-                let k2 = $name::decaps(Some(&results.pk), &results.usk, &results.c);
+                let k2 = $name::decaps(Some(&results.pk), &results.usk, &results.c).unwrap();
 
                 assert_eq!(results.k, k2);
             }
@@ -120,8 +120,8 @@ mod test_macros {
 
                 let (cts, k) = $name::multi_encaps::<_, 2>(&pk, &[&kid[0], &kid[1]], &mut rng);
 
-                let k1 = $name::decaps(Some(&pk), &usk1, &cts[0]);
-                let k2 = $name::decaps(Some(&pk), &usk2, &cts[1]);
+                let k1 = $name::decaps(Some(&pk), &usk1, &cts[0]).unwrap();
+                let k2 = $name::decaps(Some(&pk), &usk2, &cts[1]).unwrap();
 
                 assert!(k == k1 && k == k2);
                 assert_ne!(cts[0], cts[1])
@@ -131,10 +131,6 @@ mod test_macros {
             fn eq_serialize_deserialize() {
                 let result = perform_default();
 
-                assert_eq!(
-                    result.k,
-                    SharedSecret::from_bytes(&result.k.to_bytes()).unwrap()
-                );
                 assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
                 assert_eq!(
                     result.sk,

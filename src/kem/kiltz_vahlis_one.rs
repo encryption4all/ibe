@@ -2,8 +2,9 @@
 //! * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //! * Published in: CT-RSA, 2008
 
+use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
-use crate::{kem::IBKEM, Compressable};
+use crate::Compressable;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
@@ -67,12 +68,6 @@ pub struct CipherText {
     cprime: Gt,
 }
 
-/// A point on the paired curve that can be encrypted and decrypted.
-///
-/// You can use the byte representation to derive an AES key.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SharedSecret(Gt);
-
 fn hash_to_curve(pk: &PublicKey, v: &Identity) -> G1Projective {
     let mut hcoll: G1Projective = pk.hzero.into();
     for (hi, vi) in pk.h.0.iter().zip(bits(&v.0)) {
@@ -119,7 +114,10 @@ impl IBKEM for KV1 {
         (pk, sk)
     }
 
-    /// Extract an user secret key for a given identity.
+    /// Extract a user secret key for a given identity.
+    ///
+    /// This scheme **does** require the master public key to perform this operation.
+    /// If no master public key is given, this function panics.
     fn extract_usk<R: Rng + CryptoRng>(
         opk: Option<&PublicKey>,
         sk: &SecretKey,
@@ -154,11 +152,19 @@ impl IBKEM for KV1 {
             cts[i] = CipherText { c1, c2, cprime }
         }
 
-        (cts, SharedSecret(k))
+        (cts, SharedSecret::from(&k))
     }
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
-    fn decaps(_opk: Option<&PublicKey>, usk: &UserSecretKey, c: &CipherText) -> SharedSecret {
+    ///
+    /// This scheme does **not** require the systems master public key to perform this operation.
+    ///
+    /// This operation always implicitly rejects ciphertexts and therefore never errors.
+    fn decaps(
+        _opk: Option<&PublicKey>,
+        usk: &UserSecretKey,
+        c: &CipherText,
+    ) -> Result<SharedSecret, DecapsulationError> {
         let t = hash_g2_to_scalar(c.c1);
         let x: G1Affine = (usk.d1 + (usk.d3 * t)).into();
 
@@ -169,7 +175,7 @@ impl IBKEM for KV1 {
             ])
             .final_exponentiation();
 
-        SharedSecret(k)
+        Ok(SharedSecret::from(&k))
     }
 }
 
@@ -198,16 +204,6 @@ impl Clone for Identity {
 }
 
 impl Copy for Identity {}
-
-impl SharedSecret {
-    pub fn to_bytes(&self) -> [u8; 288] {
-        self.0.to_compressed()
-    }
-
-    pub fn from_bytes(bytes: &[u8; 288]) -> CtOption<Self> {
-        Gt::from_compressed(bytes).map(Self)
-    }
-}
 
 impl HashParameters {
     pub fn to_bytes(&self) -> [u8; HASH_PARAMETER_SIZE] {
