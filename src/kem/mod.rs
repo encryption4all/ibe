@@ -45,7 +45,7 @@ pub trait IBKEM {
     /// Master secret key (MSK).
     type Sk: Compressable;
 
-    /// User secret key (USK)
+    /// User secret key (USK).
     type Usk: Compressable;
 
     /// Ciphertext (CT).
