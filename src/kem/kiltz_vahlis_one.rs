@@ -5,6 +5,7 @@
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compressable;
+use crate::Identity;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
@@ -12,18 +13,18 @@ use subtle::{Choice, ConditionallySelectable, CtOption};
 
 const K: usize = 256;
 const N: usize = 2 * K;
-const N_BYTE_LEN: usize = N / 8;
-
 const HASH_PARAMETER_SIZE: usize = N * 48;
 
-// Sizes of elements in particular groups (compressed)
-const G1_BYTES: usize = 48;
-const G2_BYTES: usize = 96;
-
-// Derived sizes
+/// Size of the compressed master public key in bytes.
 pub const PK_BYTES: usize = 96 + 48 + HASH_PARAMETER_SIZE + 48 + 288;
+
+/// Size of the compressed master secret key in bytes.
 pub const SK_BYTES: usize = G1_BYTES;
+
+/// Size of the compressed user secret key in bytes.
 pub const USK_BYTES: usize = 2 * G1_BYTES + G2_BYTES;
+
+/// Size of the compressed ciphertext key in bytes.
 pub const CT_BYTES: usize = G1_BYTES + G2_BYTES;
 
 struct HashParameters([G1Affine; N]);
@@ -53,11 +54,6 @@ pub struct UserSecretKey {
     d2: G2Affine,
     d3: G1Affine,
 }
-
-/// Byte representation of an identity.
-///
-/// Can be hashed to the curve together with some parameters from the Public Key.
-pub struct Identity([u8; N_BYTE_LEN]);
 
 /// Encrypted message. Can only be decrypted with an user secret key.
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -174,32 +170,6 @@ impl IBKEM for KV1 {
         Ok(SharedSecret::from(&k))
     }
 }
-
-impl Identity {
-    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
-    /// Uses sha3-512 internally.
-    pub fn derive(b: &[u8]) -> Identity {
-        Identity(sha3_512(b))
-    }
-
-    /// Hash a string slice to a set of Identity parameters.
-    /// Directly converts characters to UTF-8 byte representation.
-    pub fn derive_str(s: &str) -> Identity {
-        Self::derive(s.as_bytes())
-    }
-}
-
-impl Clone for Identity {
-    fn clone(&self) -> Self {
-        let mut res = [u8::default(); N_BYTE_LEN];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Identity(res)
-    }
-}
-
-impl Copy for Identity {}
 
 impl HashParameters {
     pub fn to_bytes(&self) -> [u8; HASH_PARAMETER_SIZE] {

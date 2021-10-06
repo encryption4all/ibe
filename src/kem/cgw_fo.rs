@@ -10,20 +10,23 @@
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
-use crate::pke::cgw::{CipherText, Message, CGW, N_BYTE_LEN, USK_BYTES as CPA_USK_BYTES};
+use crate::pke::cgw::{CipherText, Message, CGW, USK_BYTES as CPA_USK_BYTES};
 use crate::pke::IBE;
 use crate::util::sha3_512;
 use crate::Compressable;
+use crate::{Identity, ID_BYTES};
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
 use rand::{CryptoRng, Rng};
 use subtle::{ConstantTimeEq, CtOption};
 
-/// These struct are identical for the CCA KEM
-pub use crate::pke::cgw::{Identity, PublicKey, SecretKey, CT_BYTES, PK_BYTES, SK_BYTES};
+/// These struct are identical for the CCA KEM.
+pub use crate::pke::cgw::{PublicKey, SecretKey, CT_BYTES, PK_BYTES, SK_BYTES};
 
-/// The USK includes a random message and the identity (needed for re-encryption)
-pub const USK_BYTES: usize = CPA_USK_BYTES + N_BYTE_LEN;
+/// Size of the compressed user secret key in bytes.
+///
+/// The USK includes a random message and the identity (needed for re-encryption).
+pub const USK_BYTES: usize = CPA_USK_BYTES + ID_BYTES;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UserSecretKey {
@@ -37,7 +40,7 @@ impl Compressable for UserSecretKey {
 
     fn to_bytes(&self) -> [u8; USK_BYTES] {
         let mut buf = [0u8; USK_BYTES];
-        let (usk, id) = mut_array_refs![&mut buf, CPA_USK_BYTES, N_BYTE_LEN];
+        let (usk, id) = mut_array_refs![&mut buf, CPA_USK_BYTES, ID_BYTES];
 
         *usk = self.usk.to_bytes();
         id.copy_from_slice(&self.id.0);
@@ -46,7 +49,7 @@ impl Compressable for UserSecretKey {
     }
 
     fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
-        let (usk, rid) = array_refs![&bytes, CPA_USK_BYTES, N_BYTE_LEN];
+        let (usk, rid) = array_refs![&bytes, CPA_USK_BYTES, ID_BYTES];
 
         let usk = crate::pke::cgw::UserSecretKey::from_bytes(usk);
         let id = Identity(*rid);

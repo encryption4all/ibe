@@ -3,6 +3,18 @@ use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
 use rand::{CryptoRng, RngCore};
 use tiny_keccak::Hasher;
 
+/// Size of a compressed target group element.
+pub(crate) const GT_BYTES: usize = 288;
+
+/// Size of a compressed G1 group element.
+pub(crate) const G1_BYTES: usize = 48;
+
+/// Size of a compressed G2 group element.
+pub(crate) const G2_BYTES: usize = 96;
+
+/// Size of a serialized scalar.
+pub(crate) const SCALAR_BYTES: usize = 32;
+
 #[inline(always)]
 pub fn rand_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> Scalar {
     Scalar::random(rng)
@@ -83,7 +95,7 @@ mod test_macros {
             fn perform_default() -> DefaultSubResults {
                 let mut rng = rand::thread_rng();
                 let id = ID1.as_bytes();
-                let kid = Identity::derive(id);
+                let kid = <$name as IBKEM>::Id::derive(id);
                 let (pk, sk) = $name::setup(&mut rng);
                 let usk = $name::extract_usk(Some(&pk), &sk, &kid, &mut rng);
                 let (c, k) = $name::encaps(&pk, &kid, &mut rng);
@@ -135,7 +147,10 @@ mod test_macros {
                 let id2: &str = "email:l.botros@cs.ru.nl";
                 let mut rng = rand::thread_rng();
                 let ids = [id1.as_bytes(), id2.as_bytes()];
-                let kid = [Identity::derive(ids[0]), Identity::derive(ids[1])];
+                let kid = [
+                    <$name as IBKEM>::Id::derive(ids[0]),
+                    <$name as IBKEM>::Id::derive(ids[1]),
+                ];
 
                 let (pk, sk) = $name::setup(&mut rng);
                 let usk1 = $name::extract_usk(Some(&pk), &sk, &kid[0], &mut rng);
@@ -171,7 +186,7 @@ mod test_macros {
                 use rand::RngCore;
                 let mut rng = rand::thread_rng();
 
-                let kid = Identity::derive(ID);
+                let kid = <$name as IBE>::Id::derive(ID);
 
                 let (pk, sk) = $name::setup(&mut rng);
                 let usk = $name::extract_usk(Some(&pk), &sk, &kid, &mut rng);

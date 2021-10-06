@@ -18,7 +18,7 @@
 //! let mut rng = rand::thread_rng();
 //!
 //! // Hash the identity to a set of scalars.
-//! let kid = Identity::derive(ID.as_bytes());
+//! let kid = <KV1 as IBKEM>::Id::derive(ID.as_bytes());
 //!
 //! // Generate a public-private-keypair for a trusted third party.
 //! let (pk, sk) = KV1::setup(&mut rng);
@@ -49,6 +49,8 @@ pub mod kem;
 #[doc(hidden)]
 pub mod pke;
 
+use crate::util::sha3_512;
+use irmaseal_curve::Scalar;
 use subtle::CtOption;
 
 /// Artifacts of the system that can be compressed/decrompressed/copied.
@@ -57,4 +59,33 @@ pub trait Compressable: Copy {
     type Output: Sized;
     fn to_bytes(self: &Self) -> Self::Output;
     fn from_bytes(output: &Self::Output) -> CtOption<Self>;
+}
+
+/// Size of the identity buffer.
+pub const ID_BYTES: usize = 64;
+
+/// Byte representation of an identity.
+/// Most schemes use the same representation.
+///
+/// This identity is obtained by hashing using sha3_512.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Identity([u8; ID_BYTES]);
+
+impl Identity {
+    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
+    /// Uses sha3-512 internally.
+    pub fn derive(b: &[u8]) -> Identity {
+        Identity(sha3_512(b))
+    }
+
+    /// Hash a string slice to a set of Identity parameters.
+    /// Directly converts characters to UTF-8 byte representation.
+    pub fn derive_str(s: &str) -> Identity {
+        Self::derive(s.as_bytes())
+    }
+
+    /// Create a scalar from an identity.
+    fn to_scalar(&self) -> Scalar {
+        Scalar::from_bytes_wide(&self.0)
+    }
 }

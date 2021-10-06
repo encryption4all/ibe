@@ -22,16 +22,19 @@ const CHUNKS: usize = HASH_BYTE_LEN / CHUNKSIZE;
 
 const PARAMETERSIZE: usize = CHUNKS * 96;
 
-// Sizes of elements in particular groups (compressed)
-const GT_BYTES: usize = 288;
-const G1_BYTES: usize = 48;
-const G2_BYTES: usize = 96;
-
-// Derived sizes of compressed
+/// Size of the compressed message in bytes.
 pub const MSG_BYTES: usize = GT_BYTES;
+
+/// Size of the compressed master public key in bytes.
 pub const PK_BYTES: usize = 2 * 48 + 2 * 96 + PARAMETERSIZE;
+
+/// Size of the compressed master secret key in bytes.
 pub const SK_BYTES: usize = G2_BYTES;
+
+/// Size of the compressed user secret key in bytes.
 pub const USK_BYTES: usize = G1_BYTES + G2_BYTES;
+
+/// Size of the compressed ciphertext key in bytes.
 pub const CT_BYTES: usize = G1_BYTES + G2_BYTES + GT_BYTES;
 
 #[derive(Default, Clone, Copy, PartialEq, Debug)]
