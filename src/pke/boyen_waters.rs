@@ -78,7 +78,7 @@ pub struct CipherText {
 pub struct SharedSecret(Gt);
 
 /// A message that can be encrypted using the PKE.
-pub type Message = Gt;
+pub type Msg = Gt;
 
 fn hash_to_scalar(v: &Identity) -> Scalar {
     Scalar::from_bytes_wide(&v.0)
@@ -92,7 +92,7 @@ impl IBE for BoyenWaters {
     type Sk = SecretKey;
     type Usk = UserSecretKey;
     type Ct = CipherText;
-    type Message = Message;
+    type Msg = Msg;
     type Id = Identity;
     type RngBytes = [u8; 192];
 
@@ -178,12 +178,7 @@ impl IBE for BoyenWaters {
     }
 
     /// Generate a symmetric key and corresponding CipherText for that key.
-    fn encrypt(
-        pk: &PublicKey,
-        v: &Identity,
-        m: &Message,
-        rng_bytes: &Self::RngBytes,
-    ) -> CipherText {
+    fn encrypt(pk: &PublicKey, v: &Identity, m: &Msg, rng_bytes: &Self::RngBytes) -> CipherText {
         let s = Scalar::from_bytes_wide(rng_bytes[0..64].try_into().unwrap());
         let s1 = Scalar::from_bytes_wide(rng_bytes[64..128].try_into().unwrap());
         let s2 = Scalar::from_bytes_wide(rng_bytes[128..192].try_into().unwrap());
@@ -204,7 +199,7 @@ impl IBE for BoyenWaters {
     }
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
-    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Message {
+    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Msg {
         let m = ct.cprime
             + multi_miller_loop(&[
                 (&ct.c[0], &G2Prepared::from(usk.d[0])),

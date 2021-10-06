@@ -56,16 +56,16 @@ pub struct DecapsulationError;
 
 /// Identity-based public key encapsulation mechanism (IBKEM).
 pub trait IBKEM {
-    /// Master public key (MPK).
+    /// Master public key (Mpk).
     type Pk: Compressable;
 
-    /// Master secret key (MSK).
+    /// Master secret key (Msk).
     type Sk: Compressable;
 
-    /// User secret key (USK).
+    /// User secret key (Usk).
     type Usk: Compressable;
 
-    /// Ciphertext (CT).
+    /// Ciphertext (Ct).
     type Ct: Compressable;
 
     /// Identity.
@@ -74,10 +74,16 @@ pub trait IBKEM {
     /// Shared secret.
     type Ss: Copy;
 
-    /// Sizes of this system's artifacts.
+    /// Size of the master public key in bytes.
     const PK_BYTES: usize;
+
+    /// Size of the master secret key in bytes.
     const SK_BYTES: usize;
+
+    /// Size of the user secret key in bytes.
     const USK_BYTES: usize;
+
+    /// Size of the ciphertext in bytes.
     const CT_BYTES: usize;
 
     /// Creates a MSK, MPK pair.

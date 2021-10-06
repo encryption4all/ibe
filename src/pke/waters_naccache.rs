@@ -81,7 +81,7 @@ pub struct CipherText {
 /// A point on the paired curve that can be encrypted and decrypted.
 ///
 /// You can use the byte representation to derive an AES key.
-type Message = Gt;
+type Msg = Gt;
 
 /// Common operation used in extraction and encryption to entangle
 /// PublicKey with Identity into a point on G2.
@@ -100,7 +100,7 @@ impl IBE for WatersNaccache {
     type Sk = SecretKey;
     type Usk = UserSecretKey;
     type Ct = CipherText;
-    type Message = Message;
+    type Msg = Msg;
     type Id = Identity;
     type RngBytes = [u8; 64];
 
@@ -158,12 +158,7 @@ impl IBE for WatersNaccache {
     }
 
     /// Encrypt a message using the PKG public key and an identity.
-    fn encrypt(
-        pk: &PublicKey,
-        v: &Identity,
-        m: &Message,
-        rng_bytes: &Self::RngBytes,
-    ) -> CipherText {
+    fn encrypt(pk: &PublicKey, v: &Identity, m: &Msg, rng_bytes: &Self::RngBytes) -> CipherText {
         let t = Scalar::from_bytes_wide(rng_bytes);
 
         let c3coll = entangle(pk, v);
@@ -175,7 +170,7 @@ impl IBE for WatersNaccache {
     }
 
     /// Decrypt ciphertext to a message using a user secret key.
-    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Message {
+    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
         let m = c.c1
             + multi_miller_loop(&[
                 (&usk.d2, &G2Prepared::from(c.c3)),

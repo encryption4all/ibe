@@ -70,7 +70,7 @@ pub struct CipherText {
 }
 
 /// A message that can be encrypted using the PKE.
-pub type Message = Gt;
+pub type Msg = Gt;
 
 pub struct CGW;
 
@@ -79,7 +79,7 @@ impl IBE for CGW {
     type Sk = SecretKey;
     type Usk = UserSecretKey;
     type Ct = CipherText;
-    type Message = Message;
+    type Msg = Msg;
     type Id = Identity;
     type RngBytes = [u8; 64];
 
@@ -177,12 +177,7 @@ impl IBE for CGW {
     }
 
     /// Encrypt a message using the PKG public key and an identity.
-    fn encrypt(
-        pk: &PublicKey,
-        v: &Identity,
-        message: &Message,
-        rng: &Self::RngBytes,
-    ) -> CipherText {
+    fn encrypt(pk: &PublicKey, v: &Identity, message: &Msg, rng: &Self::RngBytes) -> CipherText {
         let s = Scalar::from_bytes_wide(rng);
         let id = v.to_scalar();
 
@@ -206,7 +201,7 @@ impl IBE for CGW {
     }
 
     /// Derive the same message from the CipherText using a UserSecretKey.
-    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Message {
+    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Msg {
         ct.cprime
             + multi_miller_loop(&[
                 (&ct.c0[0], &G2Prepared::from(usk.d1[0])),

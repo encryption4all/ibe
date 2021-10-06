@@ -117,7 +117,7 @@ macro_rules! bench_ibe {
                 //     |b| b.iter(|| PublicKey::from_bytes(&ppk)),
                 // );
 
-                let m = <$struct as IBE>::Message::random(&mut rng);
+                let m = <$struct as IBE>::Msg::random(&mut rng);
                 type RngBytes = <$struct as IBE>::RngBytes;
                 let mut rand_bytes: RngBytes = [0u8; core::mem::size_of::<RngBytes>()];
                 rng.fill_bytes(&mut rand_bytes);

@@ -224,7 +224,7 @@ mod test_macros {
                 sk: SecretKey,
                 usk: UserSecretKey,
                 c: CipherText,
-                m: Message,
+                m: Msg,
             }
 
             fn perform_default() -> DefaultSubResults {
@@ -236,7 +236,7 @@ mod test_macros {
                 let (pk, sk) = $name::setup(&mut rng);
                 let usk = $name::extract_usk(Some(&pk), &sk, &kid, &mut rng);
 
-                let m = Message::random(&mut rng);
+                let m = Msg::random(&mut rng);
 
                 type Rng = <$name as IBE>::RngBytes;
                 let mut rand_bytes: Rng = [0u8; core::mem::size_of::<Rng>()];

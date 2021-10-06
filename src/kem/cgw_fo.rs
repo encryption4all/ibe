@@ -10,7 +10,7 @@
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
-use crate::pke::cgw::{CipherText, Message, CGW, USK_BYTES as CPA_USK_BYTES};
+use crate::pke::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};
 use crate::pke::IBE;
 use crate::util::*;
 use crate::Compressable;
@@ -141,7 +141,7 @@ impl CGWFO {
         rng: &mut R,
     ) -> ([CipherText; N], SharedSecret) {
         let mut cts = [CipherText::default(); N];
-        let m = Message::random(rng);
+        let m = Msg::random(rng);
 
         let coins = sha3_512(&m.to_bytes());
 

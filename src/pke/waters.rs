@@ -68,7 +68,7 @@ pub struct Identity([u8; HASH_BYTE_LEN]);
 /// A point on the paired curve that can be encrypted and decrypted.
 ///
 /// You can use the byte representation to derive an AES key.
-pub type Message = Gt;
+pub type Msg = Gt;
 
 /// Encrypted message. Can only be decrypted with an user secret key.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -96,7 +96,7 @@ impl IBE for Waters {
     type Sk = SecretKey;
     type Usk = UserSecretKey;
     type Ct = CipherText;
-    type Message = Message;
+    type Msg = Msg;
     type Id = Identity;
     type RngBytes = [u8; 64];
 
@@ -154,12 +154,7 @@ impl IBE for Waters {
     }
 
     /// Encrypt a message using the PKG public key and an identity.
-    fn encrypt(
-        pk: &PublicKey,
-        v: &Identity,
-        m: &Message,
-        rng_bytes: &Self::RngBytes,
-    ) -> CipherText {
+    fn encrypt(pk: &PublicKey, v: &Identity, m: &Msg, rng_bytes: &Self::RngBytes) -> CipherText {
         let t = Scalar::from_bytes_wide(rng_bytes);
 
         let c3coll = entangle(pk, v);
@@ -171,7 +166,7 @@ impl IBE for Waters {
     }
 
     /// Decrypt ciphertext to a message using a user secret key.
-    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Message {
+    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
         let m = c.c1
             + multi_miller_loop(&[
                 (&c.c3, &G2Prepared::from(usk.d2)),
