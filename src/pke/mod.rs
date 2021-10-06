@@ -10,11 +10,23 @@
 //!
 //! - Waters
 //! - Waters-Naccache
+//! - Boyen-Waters
 //! - Chen-Gay-Wee (or short, CGW)
 
+#[cfg(any(feature = "boyen_waters", doc))]
+#[doc(cfg(feature = "boyen_waters"))]
 pub mod boyen_waters;
+
+#[cfg(any(feature = "cgw", doc))]
+#[doc(cfg(feature = "cgw"))]
 pub mod cgw;
+
+#[cfg(any(feature = "waters", doc))]
+#[doc(cfg(feature = "waters"))]
 pub mod waters;
+
+#[cfg(any(feature = "waters_naccache", doc))]
+#[doc(cfg(feature = "waters_naccache"))]
 pub mod waters_naccache;
 
 use crate::Compressable;

@@ -12,9 +12,8 @@
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::pke::cgw::{CipherText, Message, CGW, USK_BYTES as CPA_USK_BYTES};
 use crate::pke::IBE;
-use crate::util::sha3_512;
+use crate::util::*;
 use crate::Compressable;
-use crate::{Identity, ID_BYTES};
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
 use rand::{CryptoRng, Rng};
@@ -54,7 +53,7 @@ impl Compressable for UserSecretKey {
         let usk = crate::pke::cgw::UserSecretKey::from_bytes(usk);
         let id = Identity(*rid);
 
-        usk.map(|usk| UserSecretKey { usk, id: id })
+        usk.map(|usk| UserSecretKey { usk, id })
     }
 }
 

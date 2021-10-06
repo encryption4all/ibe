@@ -4,7 +4,6 @@
 //! All structs' byte serialization use compression.
 
 use crate::util::*;
-use crate::Identity;
 use crate::{pke::IBE, Compressable};
 use arrayref::{array_refs, mut_array_refs};
 use core::convert::TryInto;
@@ -216,19 +215,6 @@ impl IBE for CGW {
                 (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
             ])
             .final_exponentiation()
-    }
-}
-
-impl Compressable for Message {
-    const OUTPUT_SIZE: usize = GT_BYTES;
-    type Output = [u8; Self::OUTPUT_SIZE];
-
-    fn to_bytes(&self) -> [u8; GT_BYTES] {
-        self.to_compressed()
-    }
-
-    fn from_bytes(bytes: &[u8; GT_BYTES]) -> CtOption<Self> {
-        Self::from_compressed(bytes)
     }
 }
 

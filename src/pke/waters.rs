@@ -1,6 +1,7 @@
 //! IND-ID-CPA secure IBE from the Waters scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
 //! * From: "[Efficient Identity-Based Encryption Without Random Oracles](https://link.springer.com/chapter/10.1007/11426639_7)"
 //! * Published in: EUROCRYPT, 2005
+
 use crate::util::*;
 use crate::{pke::IBE, Compressable};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};

@@ -8,7 +8,6 @@
 use core::convert::TryInto;
 
 use crate::util::*;
-use crate::Identity;
 use crate::{pke::IBE, Compressable};
 use arrayref::{array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
@@ -85,6 +84,7 @@ fn hash_to_scalar(v: &Identity) -> Scalar {
     Scalar::from_bytes_wide(&v.0)
 }
 
+/// The sID-IND-CPA secure Boyen & Waters scheme.
 pub struct BoyenWaters;
 
 impl IBE for BoyenWaters {

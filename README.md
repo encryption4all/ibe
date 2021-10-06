@@ -4,10 +4,10 @@ This crate contains both identity-based encryption schemes (IBEs, see `src/pke`)
 
 This crate contains the following schemes (in chronological order of publication):
 * Waters (IND-ID-CPA IBE),
-* Boyen-Waters (IND-sID-CPA IBE)
-* Waters-Naccache (IND-ID-CPA IBE)
-* Kiltz-Vahlis IBE1 (IND-CCA2 IBKEM)
-* Chen-Gay-Wee (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM)
+* Boyen-Waters (IND-sID-CPA IBE),
+* Waters-Naccache (IND-ID-CPA IBE),
+* Kiltz-Vahlis IBE1 (IND-CCA2 IBKEM),
+* Chen-Gay-Wee (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM).
 
 ## Technical notes
 * **This implementation has not (yet) been reviewed or audited. Use at your own risk.**

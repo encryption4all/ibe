@@ -1,14 +1,19 @@
-//! Identity Based Encryption schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
+//! Collection of Identity Based Encryption (IBE) schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) in Rust.
+//! This crate contains both identity-based encryption schemes (IBEs, see [the pke module](`crate::pke`)) and identity-based key encapsulation mechanisms (IBKEMs, see [the kem module](`crate::kem`)).
+//! References to papers appear in the respective source files.
 //!
-//! Implements the following schemes:
-//! * Waters
-//! * Waters-Naccache
-//! * Kiltz-Vahlis IBE1
-//! * Chen-Gay-Wee
+//! This crate contains the following schemes (in chronological order of publication):
+//! * Waters (IND-ID-CPA IBE),
+//! * Boyen-Waters (IND-sID-CPA IBE),
+//! * Waters-Naccache (IND-ID-CPA IBE),
+//! * Kiltz-Vahlis IBE1 (IND-CCA2 IBKEM),
+//! * Chen-Gay-Wee (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM).
 //!
-//! ## How to use
-//! The following example is similar for all the schemes.
+//! # Examples
+//!
+//! The following example is similar for all the KEM schemes.
 //! Check the corresponding tests for concrete examples per scheme.
+//! To actually run this example, do not forget to enable the "kv1" feature.
 //!
 //! ```
 //! use ibe::kem::IBKEM;
@@ -17,7 +22,7 @@
 //! const ID: &'static str = "email:w.geraedts@sarif.nl";
 //! let mut rng = rand::thread_rng();
 //!
-//! // Hash the identity to a set of scalars.
+//! // Derive an identity (specific to this scheme).
 //! let kid = <KV1 as IBKEM>::Id::derive(ID.as_bytes());
 //!
 //! // Generate a public-private-keypair for a trusted third party.
@@ -35,57 +40,23 @@
 //! assert_eq!(k, k2);
 //! ```
 
+#![feature(doc_cfg)]
 #![no_std]
 
 #[cfg(test)]
-#[macro_use]
 extern crate std;
 
 #[macro_use]
+#[allow(unused)]
 mod util;
 
 pub mod kem;
-
-#[doc(hidden)]
 pub mod pke;
-
-use crate::util::sha3_512;
-use irmaseal_curve::Scalar;
-use subtle::CtOption;
 
 /// Artifacts of the system that can be compressed/decrompressed/copied.
 pub trait Compressable: Copy {
     const OUTPUT_SIZE: usize;
     type Output: Sized;
     fn to_bytes(self: &Self) -> Self::Output;
-    fn from_bytes(output: &Self::Output) -> CtOption<Self>;
-}
-
-/// Size of the identity buffer.
-pub const ID_BYTES: usize = 64;
-
-/// Byte representation of an identity.
-/// Most schemes use the same representation.
-///
-/// This identity is obtained by hashing using sha3_512.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Identity([u8; ID_BYTES]);
-
-impl Identity {
-    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
-    /// Uses sha3-512 internally.
-    pub fn derive(b: &[u8]) -> Identity {
-        Identity(sha3_512(b))
-    }
-
-    /// Hash a string slice to a set of Identity parameters.
-    /// Directly converts characters to UTF-8 byte representation.
-    pub fn derive_str(s: &str) -> Identity {
-        Self::derive(s.as_bytes())
-    }
-
-    /// Create a scalar from an identity.
-    fn to_scalar(&self) -> Scalar {
-        Scalar::from_bytes_wide(&self.0)
-    }
+    fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;
 }

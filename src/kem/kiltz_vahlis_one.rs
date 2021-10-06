@@ -1,11 +1,10 @@
-//! IND-CCA2 secure IBE Kiltz-Vahlis IBE1 scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
+//! IND-CCA2 secure IBE Kiltz-Vahlis IBE1 scheme.
 //! * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //! * Published in: CT-RSA, 2008
 
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compressable;
-use crate::Identity;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};

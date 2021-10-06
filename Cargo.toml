@@ -30,7 +30,24 @@ paste = "1.0.5"
 
 [lib]
 bench = false
+doctest = false
+
+[[bin]]
+name = "sizes"
+required-features = ["kv1", "cgwfo", "cgwkv1", "cgwkv2", "cgwkv3", "boyen_waters", "waters", "waters_naccache"]
 
 [[bench]]
 name = "main"
+required-features = ["kv1", "cgwfo", "cgwkv1", "cgwkv2", "cgwkv3", "boyen_waters", "waters", "waters_naccache"]
 harness = false
+
+[features]
+cgwfo = ["cgw"]
+kv1 = []
+cgwkv1 = []
+cgwkv2 = []
+cgwkv3 = []
+cgw = []
+boyen_waters = []
+waters = []
+waters_naccache = []

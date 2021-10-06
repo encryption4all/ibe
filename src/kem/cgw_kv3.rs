@@ -10,7 +10,6 @@
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compressable;
-use crate::Identity;
 use core::convert::TryInto;
 use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
