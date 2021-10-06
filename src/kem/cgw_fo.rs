@@ -88,31 +88,25 @@ impl IBKEM for CGWFO {
         }
     }
 
-    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
-        pk: &Self::Pk,
-        ids: &[&Self::Id; N],
+    fn encaps<R: Rng + CryptoRng>(
+        pk: &PublicKey,
+        id: &Identity,
         rng: &mut R,
-    ) -> ([Self::Ct; N], Self::Ss) {
-        let mut cts = [CipherText::default(); N];
-        let m = Message::random(rng);
-
-        let coins = sha3_512(&m.to_bytes());
-
-        for (i, id) in ids.iter().enumerate() {
-            let c = CGW::encrypt(pk, id, &m, &coins);
-            cts[i] = c;
-        }
-
-        (cts, SharedSecret::from(&m))
+    ) -> (CipherText, SharedSecret) {
+        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
+        (cts[0], k)
     }
 
     /// Decapsulate a shared secret from the ciphertext.
     ///
+    /// # Panics
+    ///
     /// This scheme **does** requires the master public key due to usage the Fujisaki-Okamoto transform.
     /// This function panics if no master public key is provided.
     ///
-    /// This function returns a [`DecapsulationError`] when an
-    /// illegitimate ciphertext is encountered (explicit rejection).
+    /// # Errors
+    ///
+    /// This function returns a [`DecapsulationError`] when an illegitimate ciphertext is encountered (explicit rejection).
     fn decaps(
         opk: Option<&PublicKey>,
         usk: &UserSecretKey,
@@ -125,6 +119,8 @@ impl IBKEM for CGWFO {
 
         let c2 = CGW::encrypt(pk, &usk.id, &m, &coins);
 
+        // Can save some time by not doing a constant-time comparison
+        // since we can leak whether the decapsulation succeeds/fails.
         if c.ct_eq(&c2).into() {
             Ok(SharedSecret::from(&m))
         } else {
@@ -133,7 +129,30 @@ impl IBKEM for CGWFO {
     }
 }
 
+impl CGWFO {
+    /// Encapsulate the same shared secret in multiple ciphertexts.
+    ///
+    /// This allows to sent an encrypted broadcast message to N receivers.
+    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+        pk: &PublicKey,
+        ids: &[&Identity; N],
+        rng: &mut R,
+    ) -> ([CipherText; N], SharedSecret) {
+        let mut cts = [CipherText::default(); N];
+        let m = Message::random(rng);
+
+        let coins = sha3_512(&m.to_bytes());
+
+        for (i, id) in ids.iter().enumerate() {
+            let c = CGW::encrypt(pk, id, &m, &coins);
+            cts[i] = c;
+        }
+
+        (cts, SharedSecret::from(&m))
+    }
+}
 #[cfg(test)]
 mod tests {
     test_kem!(CGWFO);
+    test_multi_kem!(CGWFO);
 }

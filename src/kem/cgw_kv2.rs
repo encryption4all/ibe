@@ -211,39 +211,13 @@ impl IBKEM for CGWKV2 {
         }
     }
 
-    /// Generate a SharedSecret and corresponding Ciphertext for that key.
-    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
-        pk: &Self::Pk,
-        ids: &[&Self::Id; N],
+    fn encaps<R: Rng + CryptoRng>(
+        pk: &PublicKey,
+        id: &Identity,
         rng: &mut R,
-    ) -> ([Self::Ct; N], Self::Ss) {
-        let s = rand_scalar(rng);
-        let k = pk.aprime_t * s;
-
-        let mut cts = [CipherText::default(); N];
-        for (i, id) in ids.iter().enumerate() {
-            let x = id.to_scalar();
-
-            let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
-
-            let c1: [G1Affine; 2] = [
-                ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x))).into(),
-                ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
-            ];
-
-            let y = hash_g1_to_scalar(c0[0]);
-            let c2: G1Affine = ((pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y)).into();
-            let c3 = pk.kta_t * s;
-
-            cts[i] = CipherText {
-                c0, // C_i
-                c1, // C'_i
-                c2, // C''
-                c3, // C' (\in Gt)
-            }
-        }
-
-        (cts, SharedSecret::from(&k))
+    ) -> (CipherText, SharedSecret) {
+        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
+        (cts[0], k)
     }
 
     /// Derive the same SharedSecret from the CipherText using a UserSecretKey.
@@ -273,6 +247,43 @@ impl IBKEM for CGWKV2 {
             .final_exponentiation();
 
         Ok(SharedSecret::from(&k))
+    }
+}
+
+impl CGWKV2 {
+    /// Generate a SharedSecret and corresponding Ciphertext for that key.
+    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+        pk: &PublicKey,
+        ids: &[&Identity; N],
+        rng: &mut R,
+    ) -> ([CipherText; N], SharedSecret) {
+        let s = rand_scalar(rng);
+        let k = pk.aprime_t * s;
+
+        let mut cts = [CipherText::default(); N];
+        for (i, id) in ids.iter().enumerate() {
+            let x = id.to_scalar();
+
+            let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
+
+            let c1: [G1Affine; 2] = [
+                ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x))).into(),
+                ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
+            ];
+
+            let y = hash_g1_to_scalar(c0[0]);
+            let c2: G1Affine = ((pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y)).into();
+            let c3 = pk.kta_t * s;
+
+            cts[i] = CipherText {
+                c0, // C_i
+                c1, // C'_i
+                c2, // C''
+                c3, // C' (\in Gt)
+            }
+        }
+
+        (cts, SharedSecret::from(&k))
     }
 }
 
@@ -550,4 +561,5 @@ impl Compressable for CipherText {
 #[cfg(test)]
 mod tests {
     test_kem!(CGWKV2);
+    test_multi_kem!(CGWKV2);
 }

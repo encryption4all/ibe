@@ -81,23 +81,7 @@ pub trait IBKEM {
         pk: &Self::Pk,
         id: &Self::Id,
         rng: &mut R,
-    ) -> (Self::Ct, Self::Ss) {
-        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
-        (cts[0], k)
-    }
-
-    /// Encapsulate the same shared secret in multiple ciphertexts.
-    ///
-    /// This allows to sent an encrypted broadcast message to N receivers.
-    ///
-    /// # Warning
-    ///
-    /// Not all schemes hide the identity associated with each ciphertext.
-    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
-        pk: &Self::Pk,
-        ids: &[&Self::Id; N],
-        rng: &mut R,
-    ) -> ([Self::Ct; N], Self::Ss);
+    ) -> (Self::Ct, Self::Ss);
 
     /// Decrypt a ciphertext using a user secret key to retrieve the shared secret.
     ///

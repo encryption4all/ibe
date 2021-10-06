@@ -19,13 +19,12 @@ const HASH_PARAMETER_SIZE: usize = N * 48;
 // Sizes of elements in particular groups (compressed)
 const G1_BYTES: usize = 48;
 const G2_BYTES: usize = 96;
-const GT_BYTES: usize = 288;
 
 // Derived sizes
 pub const PK_BYTES: usize = 96 + 48 + HASH_PARAMETER_SIZE + 48 + 288;
 pub const SK_BYTES: usize = G1_BYTES;
 pub const USK_BYTES: usize = 2 * G1_BYTES + G2_BYTES;
-pub const CT_BYTES: usize = G1_BYTES + G2_BYTES + GT_BYTES;
+pub const CT_BYTES: usize = G1_BYTES + G2_BYTES;
 
 struct HashParameters([G1Affine; N]);
 
@@ -65,7 +64,6 @@ pub struct Identity([u8; N_BYTE_LEN]);
 pub struct CipherText {
     c1: G2Affine,
     c2: G1Affine,
-    cprime: Gt,
 }
 
 fn hash_to_curve(pk: &PublicKey, v: &Identity) -> G1Projective {
@@ -134,30 +132,29 @@ impl IBKEM for KV1 {
         UserSecretKey { d1, d2, d3 }
     }
 
-    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+    fn encaps<R: Rng + CryptoRng>(
         pk: &Self::Pk,
-        ids: &[&Self::Id; N],
+        id: &Self::Id,
         rng: &mut R,
-    ) -> ([Self::Ct; N], Self::Ss) {
-        let k = rand_gt(rng);
+    ) -> (Self::Ct, Self::Ss) {
+        let r = rand_scalar(rng);
 
-        let mut cts = [CipherText::default(); N];
-        for (i, id) in ids.iter().enumerate() {
-            let r = rand_scalar(rng);
-            let c1 = (pk.g * r).into();
-            let t = hash_g2_to_scalar(c1);
-            let c2 = ((hash_to_curve(pk, id) + (pk.u * t)) * r).into();
-            let cprime = pk.z * r + k;
+        let c1 = (pk.g * r).into();
+        let t = hash_g2_to_scalar(c1);
+        let c2 = ((hash_to_curve(pk, id) + (pk.u * t)) * r).into();
+        let k = pk.z * r;
 
-            cts[i] = CipherText { c1, c2, cprime }
-        }
-
-        (cts, SharedSecret::from(&k))
+        (CipherText { c1, c2 }, SharedSecret::from(&k))
     }
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
     ///
+    /// # Panics
+    ///
     /// This scheme does **not** require the systems master public key to perform this operation.
+    /// Therefore, this operation never panics.
+    ///
+    /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
     fn decaps(
@@ -168,12 +165,11 @@ impl IBKEM for KV1 {
         let t = hash_g2_to_scalar(c.c1);
         let x: G1Affine = (usk.d1 + (usk.d3 * t)).into();
 
-        let k = c.cprime
-            - multi_miller_loop(&[
-                (&x, &G2Prepared::from(c.c1)),
-                (&c.c2, &G2Prepared::from(usk.d2)),
-            ])
-            .final_exponentiation();
+        let k = multi_miller_loop(&[
+            (&x, &G2Prepared::from(c.c1)),
+            (&c.c2, &G2Prepared::from(usk.d2)),
+        ])
+        .final_exponentiation();
 
         Ok(SharedSecret::from(&k))
     }
@@ -344,22 +340,20 @@ impl Compressable for CipherText {
 
     fn to_bytes(&self) -> [u8; CT_BYTES] {
         let mut res = [0u8; CT_BYTES];
-        let (c1, c2, cprime) = mut_array_refs![&mut res, 96, 48, 288];
+        let (c1, c2) = mut_array_refs![&mut res, 96, 48];
         *c1 = self.c1.to_compressed();
         *c2 = self.c2.to_compressed();
-        *cprime = self.cprime.to_compressed();
 
         res
     }
 
     fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
-        let (c1, c2, cprime) = array_refs![bytes, 96, 48, 288];
+        let (c1, c2) = array_refs![bytes, 96, 48];
 
         let c1 = G2Affine::from_compressed(c1);
         let c2 = G1Affine::from_compressed(c2);
-        let cprime = Gt::from_compressed(cprime);
 
-        c1.and_then(|c1| c2.and_then(|c2| cprime.map(|cprime| CipherText { c1, c2, cprime })))
+        c1.and_then(|c1| c2.map(|c2| CipherText { c1, c2 }))
     }
 }
 

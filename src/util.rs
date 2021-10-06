@@ -69,8 +69,6 @@ mod test_macros {
             use super::*;
 
             const ID1: &'static str = "email:w.geraedts@sarif.nl";
-            #[allow(dead_code)]
-            const ID2: &'static str = "email:l.botros@cs.ru.nl";
 
             #[allow(dead_code)]
             struct DefaultSubResults {
@@ -109,25 +107,6 @@ mod test_macros {
             }
 
             #[test]
-            fn eq_multi_encaps_decaps() {
-                let mut rng = rand::thread_rng();
-                let ids = [ID1.as_bytes(), ID2.as_bytes()];
-                let kid = [Identity::derive(ids[0]), Identity::derive(ids[1])];
-
-                let (pk, sk) = $name::setup(&mut rng);
-                let usk1 = $name::extract_usk(Some(&pk), &sk, &kid[0], &mut rng);
-                let usk2 = $name::extract_usk(Some(&pk), &sk, &kid[1], &mut rng);
-
-                let (cts, k) = $name::multi_encaps::<_, 2>(&pk, &[&kid[0], &kid[1]], &mut rng);
-
-                let k1 = $name::decaps(Some(&pk), &usk1, &cts[0]).unwrap();
-                let k2 = $name::decaps(Some(&pk), &usk2, &cts[1]).unwrap();
-
-                assert!(k == k1 && k == k2);
-                assert_ne!(cts[0], cts[1])
-            }
-
-            #[test]
             fn eq_serialize_deserialize() {
                 let result = perform_default();
 
@@ -144,6 +123,31 @@ mod test_macros {
                     result.c,
                     CipherText::from_bytes(&result.c.to_bytes()).unwrap()
                 );
+            }
+        };
+    }
+
+    macro_rules! test_multi_kem {
+        ($name: ident) => {
+            #[test]
+            fn eq_multi_encaps_decaps() {
+                let id1: &str = "email:w.geraedts@sarif.nl";
+                let id2: &str = "email:l.botros@cs.ru.nl";
+                let mut rng = rand::thread_rng();
+                let ids = [id1.as_bytes(), id2.as_bytes()];
+                let kid = [Identity::derive(ids[0]), Identity::derive(ids[1])];
+
+                let (pk, sk) = $name::setup(&mut rng);
+                let usk1 = $name::extract_usk(Some(&pk), &sk, &kid[0], &mut rng);
+                let usk2 = $name::extract_usk(Some(&pk), &sk, &kid[1], &mut rng);
+
+                let (cts, k) = $name::multi_encaps::<_, 2>(&pk, &[&kid[0], &kid[1]], &mut rng);
+
+                let k1 = $name::decaps(Some(&pk), &usk1, &cts[0]).unwrap();
+                let k2 = $name::decaps(Some(&pk), &usk2, &cts[1]).unwrap();
+
+                assert!(k == k1 && k == k2);
+                assert_ne!(cts[0], cts[1])
             }
         };
     }

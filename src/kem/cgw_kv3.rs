@@ -211,42 +211,13 @@ impl IBKEM for CGWKV3 {
         }
     }
 
-    /// Generate a SharedSecret and corresponding Ciphertext for that key.
-    fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
-        pk: &Self::Pk,
-        ids: &[&Self::Id; N],
+    fn encaps<R: Rng + CryptoRng>(
+        pk: &PublicKey,
+        id: &Identity,
         rng: &mut R,
-    ) -> ([Self::Ct; N], Self::Ss) {
-        let k = rand_gt(rng);
-
-        let mut cts = [Self::Ct::default(); N];
-        for (i, id) in ids.iter().enumerate() {
-            let s = rand_scalar(rng);
-            let x = id.to_scalar();
-            let pre_y: G1Affine = (pk.a_1[0] * s).into();
-            let y = hash_g1_to_scalar(pre_y);
-
-            let cprime = pk.kta_t * s + k;
-
-            let batch = [
-                (pk.a_1[1] * s),
-                (pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x)),
-                (pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x)),
-                (pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y),
-            ];
-
-            let mut out = [G1Affine::default(); 4];
-            G1Projective::batch_normalize(&batch, &mut out);
-
-            cts[i] = CipherText {
-                c0: [pre_y, out[0]],  // C_i
-                c1: [out[1], out[2]], // C'_i
-                c2: out[3],           // C''
-                cprime,
-            }
-        }
-
-        (cts, SharedSecret::from(&k))
+    ) -> (CipherText, SharedSecret) {
+        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
+        (cts[0], k)
     }
 
     /// Derive the same SharedSecret from the CipherText using a UserSecretKey.
@@ -276,6 +247,46 @@ impl IBKEM for CGWKV3 {
             .final_exponentiation();
 
         Ok(SharedSecret::from(&m))
+    }
+}
+
+impl CGWKV3 {
+    /// Generate a SharedSecret and corresponding Ciphertext for that key.
+    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+        pk: &PublicKey,
+        ids: &[&Identity; N],
+        rng: &mut R,
+    ) -> ([CipherText; N], SharedSecret) {
+        let k = rand_gt(rng);
+
+        let mut cts = [CipherText::default(); N];
+        for (i, id) in ids.iter().enumerate() {
+            let s = rand_scalar(rng);
+            let x = id.to_scalar();
+            let pre_y: G1Affine = (pk.a_1[0] * s).into();
+            let y = hash_g1_to_scalar(pre_y);
+
+            let cprime = pk.kta_t * s + k;
+
+            let batch = [
+                (pk.a_1[1] * s),
+                (pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x)),
+                (pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x)),
+                (pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y),
+            ];
+
+            let mut out = [G1Affine::default(); 4];
+            G1Projective::batch_normalize(&batch, &mut out);
+
+            cts[i] = CipherText {
+                c0: [pre_y, out[0]],  // C_i
+                c1: [out[1], out[2]], // C'_i
+                c2: out[3],           // C''
+                cprime,
+            }
+        }
+
+        (cts, SharedSecret::from(&k))
     }
 }
 
@@ -547,4 +558,5 @@ impl Compressable for CipherText {
 #[cfg(test)]
 mod tests {
     test_kem!(CGWKV3);
+    test_multi_kem!(CGWKV3);
 }
