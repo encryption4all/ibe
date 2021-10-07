@@ -6,25 +6,25 @@
 //! - CGWFO (CCA security through FO-transform),
 //! - CGWKV1-3 (CCA security due to technique by Kiltz-Vahlis applied to CGW).
 
-#[cfg(any(feature = "cgwfo", doc))]
-#[doc(cfg(feature = "cgwfo"))]
+#[cfg(feature = "kv1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "kv1")))]
+pub mod kiltz_vahlis_one;
+
+#[cfg(feature = "cgwfo")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgwfo")))]
 pub mod cgw_fo;
 
-#[cfg(any(feature = "cgwkv1", doc))]
-#[doc(cfg(feature = "cgwkv1"))]
+#[cfg(feature = "cgwkv1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv1")))]
 pub mod cgw_kv1;
 
-#[cfg(any(feature = "cgwkv2", doc))]
-#[doc(cfg(feature = "cgwkv2"))]
+#[cfg(feature = "cgwkv2")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv2")))]
 pub mod cgw_kv2;
 
-#[cfg(any(feature = "cgwkv3", doc))]
-#[doc(cfg(feature = "cgwkv3"))]
+#[cfg(feature = "cgwkv3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv3")))]
 pub mod cgw_kv3;
-
-#[cfg(any(feature = "kv1", doc))]
-#[doc(cfg(feature = "kv1"))]
-pub mod kiltz_vahlis_one;
 
 use crate::util::*;
 use crate::Compressable;

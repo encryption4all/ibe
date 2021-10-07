@@ -41,6 +41,10 @@ name = "main"
 required-features = ["kv1", "cgwfo", "cgwkv1", "cgwkv2", "cgwkv3", "boyen_waters", "waters", "waters_naccache"]
 harness = false
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 cgwfo = ["cgw"]
 kv1 = []

@@ -40,8 +40,8 @@
 //! assert_eq!(k, k2);
 //! ```
 
-#![feature(doc_cfg)]
 #![no_std]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[cfg(test)]
 extern crate std;
