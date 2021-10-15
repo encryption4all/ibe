@@ -1,57 +1,84 @@
 [package]
-name = "ibe"
-version = "0.1.5"
-description = "Identity Based Encryption schemes on the BLS12-381 pairing-friendly elliptic curve"
-authors = ["Wouter Geraedts <git@woutergeraedts.nl>", "Leon Botros <l.botros@cs.ru.nl>"]
-edition = "2018"
-license = "MIT"
-repository = "https://github.com/encryption4all/ibe"
-keywords = ["ibe", "encryption", "ecc", "no_std"]
+authors = [
+  "Wouter Geraedts <git@woutergeraedts.nl>",
+  "Leon Botros <l.botros@cs.ru.nl>"
+]
 categories = ["cryptography", "no-std"]
-
-[dependencies]
-rand = "0.8.4"
-tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
-arrayref = "0.3.6"
-irmaseal-curve = { git = "https://github.com/encryption4all/irmaseal-curve.git", features = ["alloc", "group", "pairings"] }
-group = "0.10.0"
-
-[dependencies.subtle]
-version = "2.4.1"
-default-features = false
-
-[dependencies.byteorder]
-version = "1.3"
-default-features = false
-
-[dev-dependencies]
-criterion = "0.3.5"
-paste = "1.0.5"
-
-[lib]
-bench = false
-doctest = false
-
-[[bin]]
-name = "sizes"
-required-features = ["kv1", "cgwfo", "cgwkv1", "cgwkv2", "cgwkv3", "boyen_waters", "waters", "waters_naccache"]
-
-[[bench]]
-name = "main"
-required-features = ["kv1", "cgwfo", "cgwkv1", "cgwkv2", "cgwkv3", "boyen_waters", "waters", "waters_naccache"]
-harness = false
+description = "Identity Based Encryption schemes on the BLS12-381 pairing-friendly elliptic curve"
+edition = "2018"
+keywords = ["ibe", "encryption", "ecc", "no_std"]
+license = "MIT"
+name = "ibe"
+repository = "https://github.com/encryption4all/ibe"
+version = "0.1.5"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[[bench]]
+harness = false
+name = "main"
+required-features = [
+  "kv1",
+  "cgwfo",
+  "cgwkv1",
+  "cgwkv2",
+  "cgwkv3",
+  "boyen_waters",
+  "waters",
+  "waters_naccache"
+]
+
+[[bin]]
+name = "sizes"
+required-features = [
+  "kv1",
+  "cgwfo",
+  "cgwkv1",
+  "cgwkv2",
+  "cgwkv3",
+  "boyen_waters",
+  "waters",
+  "waters_naccache"
+]
+
+[dependencies]
+arrayref = "0.3.6"
+group = "0.10.0"
+rand = "0.8.4"
+
+[dependencies.byteorder]
+default-features = false
+version = "1.3"
+
+[dependencies.irmaseal-curve]
+features = ["alloc", "group", "pairings"]
+git = "https://github.com/encryption4all/irmaseal-curve.git"
+
+[dependencies.subtle]
+default-features = false
+version = "2.4.1"
+
+[dependencies.tiny-keccak]
+features = ["sha3", "shake"]
+version = "2.0.2"
+
+[dev-dependencies]
+criterion = "0.3.5"
+paste = "1.0.5"
+
 [features]
+boyen_waters = []
+cgw = []
 cgwfo = ["cgw"]
-kv1 = []
 cgwkv1 = []
 cgwkv2 = []
 cgwkv3 = []
-cgw = []
-boyen_waters = []
+kv1 = []
 waters = []
 waters_naccache = []
+
+[lib]
+bench = false
+doctest = false
