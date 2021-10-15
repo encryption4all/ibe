@@ -29,29 +29,29 @@ pub mod waters;
 #[cfg_attr(docsrs, doc(cfg(feature = "waters_naccache")))]
 pub mod waters_naccache;
 
-use crate::Compressable;
+use crate::{Compress, Derive};
 use group::Group;
 use rand::{CryptoRng, Rng};
 
 /// Identity-based public key encryption scheme (IBPKE).
 pub trait IBE {
     /// Master public key (Mpk).
-    type Pk: Compressable;
+    type Pk: Compress;
 
     /// Master secret key (Msk).
-    type Sk: Compressable;
+    type Sk: Compress;
 
     /// User secret key (Usk).
-    type Usk: Compressable;
+    type Usk: Compress;
 
     /// Ciphertext (Ct).
-    type Ct: Compressable;
+    type Ct: Compress;
 
     /// Message type (Msg), we require group so that we can draw random messages.
-    type Msg: Compressable + Group;
+    type Msg: Compress + Group;
 
     /// Internal identity type (Id).
-    type Id: Copy + Clone;
+    type Id: Copy + Derive;
 
     /// Randomness required to encrypt a message.
     type RngBytes: Sized;

@@ -4,7 +4,7 @@
 //! All structs' byte serialization use compression.
 
 use crate::util::*;
-use crate::{pke::IBE, Compressable};
+use crate::{pke::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use core::convert::TryInto;
 use irmaseal_curve::{
@@ -72,6 +72,7 @@ pub struct CipherText {
 /// A message that can be encrypted using the PKE.
 pub type Msg = Gt;
 
+/// The Chen-Gay-Wee identity-based encryption scheme.
 pub struct CGW;
 
 impl IBE for CGW {
@@ -213,7 +214,7 @@ impl IBE for CGW {
     }
 }
 
-impl Compressable for PublicKey {
+impl Compress for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -275,7 +276,7 @@ impl Compressable for PublicKey {
     }
 }
 
-impl Compressable for SecretKey {
+impl Compress for SecretKey {
     const OUTPUT_SIZE: usize = SK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -332,7 +333,7 @@ impl Compressable for SecretKey {
     }
 }
 
-impl Compressable for UserSecretKey {
+impl Compress for UserSecretKey {
     const OUTPUT_SIZE: usize = USK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -370,7 +371,7 @@ impl Compressable for UserSecretKey {
     }
 }
 
-impl Compressable for CipherText {
+impl Compress for CipherText {
     const OUTPUT_SIZE: usize = CT_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 

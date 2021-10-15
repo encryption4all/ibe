@@ -1,4 +1,4 @@
-use crate::Compressable;
+use crate::{Compress, Derive};
 use group::{ff::Field, Group};
 use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
 use rand::{CryptoRng, RngCore};
@@ -85,27 +85,29 @@ pub fn shake256<const N: usize>(slice: &[u8]) -> [u8; N] {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Identity(pub [u8; ID_BYTES]);
 
-impl Identity {
+impl Derive for Identity {
     /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
     /// Uses sha3-512 internally.
-    pub fn derive(b: &[u8]) -> Identity {
+    fn derive(b: &[u8]) -> Identity {
         Identity(sha3_512(b))
     }
 
     /// Hash a string slice to a set of Identity parameters.
     /// Directly converts characters to UTF-8 byte representation.
-    pub fn derive_str(s: &str) -> Identity {
+    fn derive_str(s: &str) -> Identity {
         Self::derive(s.as_bytes())
     }
+}
 
+impl Identity {
     /// Create a scalar from an identity.
     #[allow(unused)]
-    pub fn to_scalar(&self) -> Scalar {
+    pub(crate) fn to_scalar(&self) -> Scalar {
         Scalar::from_bytes_wide(&self.0)
     }
 }
 
-impl Compressable for Gt {
+impl Compress for Gt {
     const OUTPUT_SIZE: usize = GT_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -123,8 +125,6 @@ impl Compressable for Gt {
 mod test_macros {
     macro_rules! test_kem {
         ($name: ident) => {
-            use super::*;
-
             const ID1: &'static str = "email:w.geraedts@sarif.nl";
 
             #[allow(dead_code)]
@@ -215,6 +215,7 @@ mod test_macros {
     macro_rules! test_ibe {
         ($name: ident) => {
             use super::*;
+            use crate::Derive;
 
             const ID: &'static [u8] = b"email:w.geraedts@sarif.nl";
 

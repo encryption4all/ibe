@@ -27,7 +27,7 @@ pub mod cgw_kv2;
 pub mod cgw_kv3;
 
 use crate::util::*;
-use crate::Compressable;
+use crate::{Compress, Derive};
 use irmaseal_curve::Gt;
 use rand::{CryptoRng, Rng};
 
@@ -55,21 +55,21 @@ impl From<&Gt> for SharedSecret {
 pub struct DecapsulationError;
 
 /// Identity-based public key encapsulation mechanism (IBKEM).
-pub trait IBKEM {
+pub trait IBKEM: Clone {
     /// Master public key (Mpk).
-    type Pk: Compressable;
+    type Pk: Compress;
 
     /// Master secret key (Msk).
-    type Sk: Compressable;
+    type Sk: Compress;
 
     /// User secret key (Usk).
-    type Usk: Compressable;
+    type Usk: Compress;
 
     /// Ciphertext (Ct).
-    type Ct: Compressable;
+    type Ct: Compress;
 
     /// Identity.
-    type Id: Copy;
+    type Id: Copy + Derive;
 
     /// Shared secret.
     type Ss: Copy;

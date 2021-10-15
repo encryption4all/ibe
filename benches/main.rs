@@ -7,7 +7,7 @@ macro_rules! bench_kem {
         paste! {
             fn [<bench_kem_ $scheme>](criterion: &mut Criterion) {
                 use ibe::kem::$scheme::*;
-                use ibe::{kem::IBKEM, Compressable};
+                use ibe::{kem::IBKEM, Compress, Derive};
 
                 let mut rng = rand::thread_rng();
 
@@ -71,7 +71,7 @@ macro_rules! bench_multi_kem {
         paste! {
             fn [<bench_multi_kem_ $scheme>](criterion: &mut Criterion) {
                 use ibe::kem::$scheme::*;
-                use ibe::kem::IBKEM;
+                use ibe::{kem::IBKEM, Derive};
 
                 let mut rng = rand::thread_rng();
 
@@ -100,7 +100,7 @@ macro_rules! bench_ibe {
             fn [<bench_ibe_ $scheme>](criterion: &mut Criterion) {
                 use group::Group;
                 use ibe::pke::$scheme::*;
-                use ibe::pke::IBE;
+                use ibe::{pke::IBE, Derive};
                 use rand::RngCore;
 
                 let mut rng = rand::thread_rng();

@@ -53,10 +53,18 @@ mod util;
 pub mod kem;
 pub mod pke;
 
-/// Artifacts of the system that can be compressed/decrompressed/copied.
-pub trait Compressable: Copy {
+/// Artifacts of the system.
+///
+/// Can be compressed to byte format and back. Each scheme has its own associated types and
+/// therefore produce diffently sized byte arrays.
+pub trait Compress: Copy {
     const OUTPUT_SIZE: usize;
-    type Output: Sized;
+    type Output: Copy + Clone + AsRef<[u8]>;
     fn to_bytes(self: &Self) -> Self::Output;
     fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;
+}
+
+pub trait Derive {
+    fn derive(b: &[u8]) -> Self;
+    fn derive_str(s: &str) -> Self;
 }

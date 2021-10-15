@@ -9,7 +9,7 @@
 
 use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::util::*;
-use crate::Compressable;
+use crate::Compress;
 use core::convert::TryInto;
 use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
@@ -74,6 +74,8 @@ fn hash_g1_to_scalar(g1: G1Affine) -> Scalar {
     Scalar::from_bytes_wide(&buf)
 }
 
+/// The CGW-KV1 identity-based key encapsulation scheme.
+#[derive(Clone)]
 pub struct CGWKV1;
 
 impl IBKEM for CGWKV1 {
@@ -247,7 +249,7 @@ impl CGWKV1 {
     }
 }
 
-impl Compressable for PublicKey {
+impl Compress for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -315,7 +317,7 @@ impl Compressable for PublicKey {
     }
 }
 
-impl Compressable for SecretKey {
+impl Compress for SecretKey {
     const OUTPUT_SIZE: usize = SK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -386,7 +388,7 @@ impl Compressable for SecretKey {
     }
 }
 
-impl Compressable for UserSecretKey {
+impl Compress for UserSecretKey {
     const OUTPUT_SIZE: usize = USK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -428,7 +430,7 @@ impl Compressable for UserSecretKey {
     }
 }
 
-impl Compressable for CipherText {
+impl Compress for CipherText {
     const OUTPUT_SIZE: usize = CT_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -467,6 +469,9 @@ impl Compressable for CipherText {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::Derive;
+
     test_kem!(CGWKV1);
     test_multi_kem!(CGWKV1);
 }

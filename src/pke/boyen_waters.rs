@@ -8,7 +8,7 @@
 use core::convert::TryInto;
 
 use crate::util::*;
-use crate::{pke::IBE, Compressable};
+use crate::{pke::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
 use rand::{CryptoRng, Rng};
@@ -84,7 +84,7 @@ fn hash_to_scalar(v: &Identity) -> Scalar {
     Scalar::from_bytes_wide(&v.0)
 }
 
-/// The sID-IND-CPA secure Boyen & Waters scheme.
+/// The Boyen & Waters identity-based encryption scheme.
 pub struct BoyenWaters;
 
 impl IBE for BoyenWaters {
@@ -224,7 +224,7 @@ impl SharedSecret {
     }
 }
 
-impl Compressable for PublicKey {
+impl Compress for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -299,7 +299,7 @@ impl Compressable for PublicKey {
     }
 }
 
-impl Compressable for SecretKey {
+impl Compress for SecretKey {
     const OUTPUT_SIZE: usize = SK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -357,7 +357,7 @@ impl Compressable for SecretKey {
     }
 }
 
-impl Compressable for UserSecretKey {
+impl Compress for UserSecretKey {
     const OUTPUT_SIZE: usize = USK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -399,7 +399,7 @@ impl Compressable for UserSecretKey {
     }
 }
 
-impl Compressable for CipherText {
+impl Compress for CipherText {
     const OUTPUT_SIZE: usize = CT_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 

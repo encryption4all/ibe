@@ -3,7 +3,7 @@
 //! * Published in: EUROCRYPT, 2005
 
 use crate::util::*;
-use crate::{pke::IBE, Compressable};
+use crate::{pke::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
@@ -88,7 +88,7 @@ fn entangle(pk: &PublicKey, v: &Identity) -> G1Projective {
     ucoll
 }
 
-/// The Waters scheme
+/// The Waters identity-based encryption scheme.
 pub struct Waters;
 
 impl IBE for Waters {
@@ -235,16 +235,16 @@ impl Default for Parameters {
     }
 }
 
-impl Identity {
+impl Derive for Identity {
     /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
     /// Uses sha3-256 internally.
-    pub fn derive(b: &[u8]) -> Identity {
+    fn derive(b: &[u8]) -> Identity {
         Identity(sha3_256(b))
     }
 
     /// Hash a string slice to a set of Identity parameters.
     /// Directly converts characters to UTF-8 byte representation.
-    pub fn derive_str(s: &str) -> Identity {
+    fn derive_str(s: &str) -> Identity {
         Self::derive(s.as_bytes())
     }
 }
@@ -261,7 +261,7 @@ impl Clone for Identity {
 
 impl Copy for Identity {}
 
-impl Compressable for PublicKey {
+impl Compress for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -303,7 +303,7 @@ impl Compressable for PublicKey {
     }
 }
 
-impl Compressable for SecretKey {
+impl Compress for SecretKey {
     const OUTPUT_SIZE: usize = SK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -316,7 +316,7 @@ impl Compressable for SecretKey {
     }
 }
 
-impl Compressable for UserSecretKey {
+impl Compress for UserSecretKey {
     const OUTPUT_SIZE: usize = USK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -338,7 +338,7 @@ impl Compressable for UserSecretKey {
     }
 }
 
-impl Compressable for CipherText {
+impl Compress for CipherText {
     const OUTPUT_SIZE: usize = CT_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 

@@ -13,7 +13,7 @@ use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
 use crate::pke::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};
 use crate::pke::IBE;
 use crate::util::*;
-use crate::Compressable;
+use crate::Compress;
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
 use rand::{CryptoRng, Rng};
@@ -33,7 +33,7 @@ pub struct UserSecretKey {
     id: Identity,
 }
 
-impl Compressable for UserSecretKey {
+impl Compress for UserSecretKey {
     const OUTPUT_SIZE: usize = USK_BYTES;
     type Output = [u8; Self::OUTPUT_SIZE];
 
@@ -57,6 +57,9 @@ impl Compressable for UserSecretKey {
     }
 }
 
+/// The CCA2 secure KEM that results by applying the implicit rejection
+/// variant of the Fujisaki-Okamoto transform to the Chen-Gay-Wee IBE scheme.
+#[derive(Clone)]
 pub struct CGWFO;
 
 impl IBKEM for CGWFO {
@@ -155,6 +158,9 @@ impl CGWFO {
 }
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::Derive;
+
     test_kem!(CGWFO);
     test_multi_kem!(CGWFO);
 }
