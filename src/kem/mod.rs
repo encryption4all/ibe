@@ -56,6 +56,9 @@ pub struct DecapsulationError;
 
 /// Identity-based public key encapsulation mechanism (IBKEM).
 pub trait IBKEM: Clone {
+    /// Scheme identifier.
+    const IDENTIFIER: &'static str;
+
     /// Master public key (Mpk).
     type Pk: Compress;
 

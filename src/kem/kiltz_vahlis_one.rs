@@ -77,6 +77,8 @@ fn hash_g2_to_scalar(x: G2Affine) -> Scalar {
 }
 
 impl IBKEM for KV1 {
+    const IDENTIFIER: &'static str = "kv1";
+
     type Pk = PublicKey;
     type Sk = SecretKey;
     type Usk = UserSecretKey;

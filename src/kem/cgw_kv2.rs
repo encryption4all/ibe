@@ -83,6 +83,8 @@ fn hash_g1_to_scalar(g1: G1Affine) -> Scalar {
 pub struct CGWKV2;
 
 impl IBKEM for CGWKV2 {
+    const IDENTIFIER: &'static str = "cgwkv2";
+
     type Pk = PublicKey;
     type Sk = SecretKey;
     type Usk = UserSecretKey;

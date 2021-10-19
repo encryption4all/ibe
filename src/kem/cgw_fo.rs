@@ -63,6 +63,8 @@ impl Compress for UserSecretKey {
 pub struct CGWFO;
 
 impl IBKEM for CGWFO {
+    const IDENTIFIER: &'static str = "cgwfo";
+
     type Pk = PublicKey;
     type Sk = SecretKey;
     type Usk = UserSecretKey;
