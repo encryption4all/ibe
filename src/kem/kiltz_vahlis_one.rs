@@ -2,7 +2,7 @@
 //! * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //! * Published in: CT-RSA, 2008
 
-use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
+use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compress;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
@@ -160,7 +160,7 @@ impl IBKEM for KV1 {
         _opk: Option<&PublicKey>,
         usk: &UserSecretKey,
         c: &CipherText,
-    ) -> Result<SharedSecret, DecapsulationError> {
+    ) -> Result<SharedSecret, Error> {
         let t = hash_g2_to_scalar(c.c1);
         let x: G1Affine = (usk.d1 + (usk.d3 * t)).into();
 

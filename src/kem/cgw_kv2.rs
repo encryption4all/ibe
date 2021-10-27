@@ -7,7 +7,7 @@
 //!
 //! Important notice: Keep in mind that the security of this scheme has not formally been proven.
 
-use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
+use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compress;
 use core::convert::TryInto;
@@ -212,18 +212,43 @@ impl IBKEM for CGWKV2 {
         id: &Identity,
         rng: &mut R,
     ) -> (CipherText, SharedSecret) {
-        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
-        (cts[0], k)
+        let s = rand_scalar(rng);
+        let k = pk.aprime_t * s;
+
+        let x = id.to_scalar();
+
+        let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
+
+        let c1: [G1Affine; 2] = [
+            ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x))).into(),
+            ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
+        ];
+
+        let y = hash_g1_to_scalar(c0[0]);
+        let c2: G1Affine = ((pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y)).into();
+        let c3 = pk.kta_t * s;
+
+        (
+            CipherText {
+                c0, // C_i
+                c1, // C'_i
+                c2, // C''
+                c3, // C' (\in Gt)
+            },
+            SharedSecret::from(&k),
+        )
     }
 
     /// Derive the same SharedSecret from the CipherText using a UserSecretKey.
+    ///
+    /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
     fn decaps(
         _pk: Option<&PublicKey>,
         usk: &UserSecretKey,
         ct: &CipherText,
-    ) -> Result<SharedSecret, DecapsulationError> {
+    ) -> Result<SharedSecret, Error> {
         let y = hash_g1_to_scalar(ct.c0[0]);
         let z: G2Affine = (usk.d2[0] + (usk.d2[1] * y)).into();
 
@@ -246,42 +271,42 @@ impl IBKEM for CGWKV2 {
     }
 }
 
-impl CGWKV2 {
-    /// Generate a SharedSecret and corresponding Ciphertext for that key.
-    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
-        pk: &PublicKey,
-        ids: &[&Identity; N],
-        rng: &mut R,
-    ) -> ([CipherText; N], SharedSecret) {
-        let s = rand_scalar(rng);
-        let k = pk.aprime_t * s;
-
-        let mut cts = [CipherText::default(); N];
-        for (i, id) in ids.iter().enumerate() {
-            let x = id.to_scalar();
-
-            let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
-
-            let c1: [G1Affine; 2] = [
-                ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x))).into(),
-                ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
-            ];
-
-            let y = hash_g1_to_scalar(c0[0]);
-            let c2: G1Affine = ((pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y)).into();
-            let c3 = pk.kta_t * s;
-
-            cts[i] = CipherText {
-                c0, // C_i
-                c1, // C'_i
-                c2, // C''
-                c3, // C' (\in Gt)
-            }
-        }
-
-        (cts, SharedSecret::from(&k))
-    }
-}
+//impl CGWKV2 {
+//    /// Generate a SharedSecret and corresponding Ciphertext for that key.
+//    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+//        pk: &PublicKey,
+//        ids: &[&Identity; N],
+//        rng: &mut R,
+//    ) -> ([CipherText; N], SharedSecret) {
+//        let s = rand_scalar(rng);
+//        let k = pk.aprime_t * s;
+//
+//        let mut cts = [CipherText::default(); N];
+//        for (i, id) in ids.iter().enumerate() {
+//            let x = id.to_scalar();
+//
+//            let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
+//
+//            let c1: [G1Affine; 2] = [
+//                ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x))).into(),
+//                ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
+//            ];
+//
+//            let y = hash_g1_to_scalar(c0[0]);
+//            let c2: G1Affine = ((pk.wprime_1[0] * s) + (pk.wprime_1[1]) * (s * y)).into();
+//            let c3 = pk.kta_t * s;
+//
+//            cts[i] = CipherText {
+//                c0, // C_i
+//                c1, // C'_i
+//                c2, // C''
+//                c3, // C' (\in Gt)
+//            }
+//        }
+//
+//        (cts, SharedSecret::from(&k))
+//    }
+//}
 
 impl Compress for PublicKey {
     const OUTPUT_SIZE: usize = PK_BYTES;
@@ -530,5 +555,5 @@ mod tests {
     use crate::Derive;
 
     test_kem!(CGWKV2);
-    test_multi_kem!(CGWKV2);
+    //test_multi_kem!(CGWKV2);
 }

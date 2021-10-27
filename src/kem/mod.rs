@@ -50,9 +50,13 @@ impl From<&Gt> for SharedSecret {
     }
 }
 
-/// Error indicating that the decapsulation was not successful.
 #[derive(Debug)]
-pub struct DecapsulationError;
+pub enum Error {
+    /// Error indicating that the decapsulation was not successful.
+    Decapsulation,
+    /// Error that the given buffer of ciphertexts is not the correct size.
+    IncorrectSize,
+}
 
 /// Identity-based public key encapsulation mechanism (IBKEM).
 pub trait IBKEM: Clone {
@@ -69,10 +73,10 @@ pub trait IBKEM: Clone {
     type Usk: Compress;
 
     /// Ciphertext (Ct).
-    type Ct: Compress;
+    type Ct: Compress + Default;
 
     /// Identity.
-    type Id: Copy + Derive;
+    type Id: Copy + Default + Derive;
 
     /// Shared secret.
     type Ss: Copy;
@@ -115,9 +119,5 @@ pub trait IBKEM: Clone {
     ///
     /// For some schemes this operation can fail explicitly, e.g., when
     /// a bogus ciphertext is used as input.
-    fn decaps(
-        mpk: Option<&Self::Pk>,
-        usk: &Self::Usk,
-        ct: &Self::Ct,
-    ) -> Result<Self::Ss, crate::kem::DecapsulationError>;
+    fn decaps(mpk: Option<&Self::Pk>, usk: &Self::Usk, ct: &Self::Ct) -> Result<Self::Ss, Error>;
 }

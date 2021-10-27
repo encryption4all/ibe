@@ -9,7 +9,7 @@
 //!
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
 
-use crate::kem::{DecapsulationError, SharedSecret, IBKEM};
+use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::pke::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};
 use crate::pke::IBE;
 use crate::util::*;
@@ -100,7 +100,8 @@ impl IBKEM for CGWFO {
         id: &Identity,
         rng: &mut R,
     ) -> (CipherText, SharedSecret) {
-        let (cts, k) = Self::multi_encaps::<R, 1>(pk, &[id], rng);
+        let mut cts = [CipherText::default()];
+        let k = Self::multi_encaps(pk, &[id], rng, &mut cts).unwrap();
         (cts[0], k)
     }
 
@@ -113,12 +114,12 @@ impl IBKEM for CGWFO {
     ///
     /// # Errors
     ///
-    /// This function returns a [`DecapsulationError`] when an illegitimate ciphertext is encountered (explicit rejection).
+    /// This function returns an [`Error::DecapsulationError`] when an illegitimate ciphertext is encountered (explicit rejection).
     fn decaps(
         opk: Option<&PublicKey>,
         usk: &UserSecretKey,
         c: &CipherText,
-    ) -> Result<SharedSecret, DecapsulationError> {
+    ) -> Result<SharedSecret, Error> {
         let pk = opk.unwrap();
 
         let m = CGW::decrypt(&usk.usk, c);
@@ -131,7 +132,7 @@ impl IBKEM for CGWFO {
         if c.ct_eq(&c2).into() {
             Ok(SharedSecret::from(&m))
         } else {
-            Err(DecapsulationError)
+            Err(Error::Decapsulation)
         }
     }
 }
@@ -139,25 +140,33 @@ impl IBKEM for CGWFO {
 impl CGWFO {
     /// Encapsulate the same shared secret in multiple ciphertexts.
     ///
-    /// This allows to sent an encrypted broadcast message to N receivers.
-    pub fn multi_encaps<R: Rng + CryptoRng, const N: usize>(
+    /// This allows to sent an encrypted broadcast message to multiple receivers.
+    ///
+    /// # Errors
+    ///
+    /// If the number of identities does not match the number of preallocated ciphertexts
+    /// an [`Error::IncorrectCiphertextsSize`] is given.
+    pub fn multi_encaps<R: Rng + CryptoRng>(
         pk: &PublicKey,
-        ids: &[&Identity; N],
+        ids: &[&Identity],
         rng: &mut R,
-    ) -> ([CipherText; N], SharedSecret) {
-        let mut cts = [CipherText::default(); N];
-        let m = Msg::random(rng);
+        cts: &mut [CipherText],
+    ) -> Result<SharedSecret, Error> {
+        if ids.len() != cts.len() {
+            Err(Error::IncorrectSize)?
+        }
 
+        let m = Msg::random(rng);
         let coins = sha3_512(&m.to_bytes());
 
         for (i, id) in ids.iter().enumerate() {
-            let c = CGW::encrypt(pk, id, &m, &coins);
-            cts[i] = c;
+            cts[i] = CGW::encrypt(pk, id, &m, &coins);
         }
 
-        (cts, SharedSecret::from(&m))
+        Ok(SharedSecret::from(&m))
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

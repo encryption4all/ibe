@@ -79,13 +79,15 @@ macro_rules! bench_multi_kem {
                 let kid = <$struct as IBKEM>::Id::derive(id);
 
                 let (pk, _sk) = $struct::setup(&mut rng);
+                let kids = [&kid; 10];
+                let mut cts = [<$struct as IBKEM>::Ct::default(); 10];
 
                 criterion.bench_function(
                     &format!("kem_{} multi-encaps x10", stringify!($scheme)).to_string(),
                     move |b| {
                         let mut rng = rand::thread_rng();
                         b.iter(|| {
-                            $struct::multi_encaps(black_box(&pk), black_box(&[&kid; 10]), &mut rng)
+                            $struct::multi_encaps(black_box(&pk), black_box(&kids[..]), &mut rng, &mut cts)
                         })
                     },
                 );
@@ -179,9 +181,9 @@ bench_ibe!(waters_naccache, WatersNaccache);
 bench_ibe!(cgw, CGW);
 
 bench_multi_kem!(cgw_fo, CGWFO);
-bench_multi_kem!(cgw_kv1, CGWKV1);
-bench_multi_kem!(cgw_kv2, CGWKV2);
-bench_multi_kem!(cgw_kv3, CGWKV3);
+//bench_multi_kem!(cgw_kv1, CGWKV1);
+//bench_multi_kem!(cgw_kv2, CGWKV2);
+//bench_multi_kem!(cgw_kv3, CGWKV3);
 
 criterion_group!(
     name = kem_benches;
@@ -193,9 +195,9 @@ criterion_group!(
     bench_kem_cgw_kv2,
     bench_kem_cgw_kv3,
     bench_multi_kem_cgw_fo,
-    bench_multi_kem_cgw_kv1,
-    bench_multi_kem_cgw_kv2,
-    bench_multi_kem_cgw_kv3,
+//    bench_multi_kem_cgw_kv1,
+//    bench_multi_kem_cgw_kv2,
+//    bench_multi_kem_cgw_kv3,
 );
 
 criterion_group!(

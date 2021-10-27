@@ -46,7 +46,11 @@
 #[cfg(test)]
 extern crate std;
 
+#[cfg(test)]
 #[macro_use]
+#[allow(unused)]
+mod test_macros;
+
 #[allow(unused)]
 mod util;
 
