@@ -20,7 +20,7 @@ use rand::{CryptoRng, Rng};
 use subtle::{ConstantTimeEq, CtOption};
 
 /// These struct are identical for the CCA KEM.
-pub use crate::pke::cgw::{PublicKey, SecretKey, CT_BYTES, PK_BYTES, SK_BYTES};
+pub use crate::pke::cgw::{PublicKey, SecretKey, CT_BYTES, MSG_BYTES, PK_BYTES, SK_BYTES};
 
 /// Size of the compressed user secret key in bytes.
 ///
@@ -123,7 +123,12 @@ impl IBKEM for CGWFO {
         let pk = opk.unwrap();
 
         let m = CGW::decrypt(&usk.usk, c);
-        let coins = sha3_512(&m.to_bytes());
+
+        let mut pre_coins = [0u8; MSG_BYTES + ID_BYTES];
+        pre_coins[..MSG_BYTES].copy_from_slice(&m.to_bytes());
+        pre_coins[MSG_BYTES..].copy_from_slice(&usk.id.0);
+
+        let coins = sha3_512(&pre_coins);
 
         let c2 = CGW::encrypt(pk, &usk.id, &m, &coins);
 
@@ -157,9 +162,14 @@ impl CGWFO {
         }
 
         let m = Msg::random(rng);
-        let coins = sha3_512(&m.to_bytes());
+
+        let mut pre_coins = [0u8; MSG_BYTES + ID_BYTES];
+        pre_coins[..MSG_BYTES].copy_from_slice(&m.to_bytes());
 
         for (i, id) in ids.iter().enumerate() {
+            pre_coins[MSG_BYTES..].copy_from_slice(&id.0);
+            let coins = sha3_512(&pre_coins);
+
             cts[i] = CGW::encrypt(pk, id, &m, &coins);
         }
 
