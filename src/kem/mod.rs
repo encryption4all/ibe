@@ -32,7 +32,7 @@ use irmaseal_curve::Gt;
 use rand::{CryptoRng, Rng};
 
 /// Size of the shared secret in bytes.
-pub const SS_BYTES: usize = 64;
+pub const SS_BYTES: usize = 32;
 
 /// All KEMs in this library produce a 64-byte shared secret.
 ///
