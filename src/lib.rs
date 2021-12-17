@@ -57,18 +57,25 @@ mod util;
 pub mod kem;
 pub mod pke;
 
-/// Artifacts of the system.
+/// Artifacts of the system that are possibly sent over the network implement this trait.
 ///
-/// Can be compressed to byte format and back. Each scheme has its own associated types and
-/// therefore produce diffently sized byte arrays.
+/// Can be used compressed to (short) byte format and back.
+/// Each scheme has its own associated types and therefore produce diffently sized byte arrays.
 pub trait Compress: Copy {
     const OUTPUT_SIZE: usize;
-    type Output: Copy + Clone + AsRef<[u8]>;
+    type Output: Sized + Copy + Clone + AsRef<[u8]>;
+
+    /// Compresses this artifact to a short serialized byte representation.
     fn to_bytes(self: &Self) -> Self::Output;
+
+    /// Decompresses a serialized artifact.
     fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;
 }
 
 pub trait Derive {
+    /// Derives an identity from a byte slice for a particular scheme.
     fn derive(b: &[u8]) -> Self;
+
+    /// Derives an identity from a string for a particular scheme.
     fn derive_str(s: &str) -> Self;
 }
