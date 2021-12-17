@@ -38,24 +38,24 @@ macro_rules! test_kem {
             assert_eq!(results.k, k2);
         }
 
-        #[test]
-        fn eq_serialize_deserialize() {
-            let result = perform_default();
+        //#[test]
+        //fn eq_serialize_deserialize() {
+        //    let result = perform_default();
 
-            assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
-            assert_eq!(
-                result.sk,
-                SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
-            );
-            assert_eq!(
-                result.usk,
-                UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
-            );
-            assert_eq!(
-                result.c,
-                CipherText::from_bytes(&result.c.to_bytes()).unwrap()
-            );
-        }
+        //    assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
+        //    assert_eq!(
+        //        result.sk,
+        //        SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
+        //    );
+        //    assert_eq!(
+        //        result.usk,
+        //        UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
+        //    );
+        //    assert_eq!(
+        //        result.c,
+        //        CipherText::from_bytes(&result.c.to_bytes()).unwrap()
+        //    );
+        //}
     };
 }
 
