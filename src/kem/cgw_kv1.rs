@@ -4,28 +4,25 @@
 //! CCA security due to a generalized approach from Kiltz & Vahlis.
 //!  * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!  * Published in: CT-RSA, 2008
-//!
-//! Important notice: Keep in mind that the security of this scheme has not formally been proven.
 
 use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compress;
-use core::convert::TryInto;
 use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };
 use rand::{CryptoRng, Rng};
-use subtle::{Choice, CtOption};
+use subtle::CtOption;
 
 /// Size of the compressed master public key in bytes.
-pub const PK_BYTES: usize = 7 * G1_BYTES + GT_BYTES;
+pub const PK_BYTES: usize = 8 * G1_BYTES + GT_BYTES;
 
 /// Size of the compressed master secret key in bytes.
-pub const SK_BYTES: usize = 13 * SCALAR_BYTES;
+pub const SK_BYTES: usize = 14 * SCALAR_BYTES;
 
 /// Size of the compressed user secret key in bytes.
-pub const USK_BYTES: usize = 5 * G2_BYTES;
+pub const USK_BYTES: usize = 6 * G2_BYTES;
 
 /// Size of the compressed ciphertext key in bytes.
 pub const CT_BYTES: usize = 4 * G1_BYTES;
@@ -37,7 +34,7 @@ pub struct PublicKey {
     a_1: [G1Affine; 2],
     w0ta_1: [G1Affine; 2],
     w1ta_1: [G1Affine; 2],
-    wprime_1: G1Affine,
+    wprime_1: [G1Affine; 2],
     kta_t: Gt,
 }
 
@@ -49,16 +46,16 @@ pub struct SecretKey {
     k: [Scalar; 2],
     w0: [[Scalar; 2]; 2],
     w1: [[Scalar; 2]; 2],
-    wprime: Scalar,
+    wprime: [[Scalar; 2]; 2],
 }
 
 /// User secret key. Can be used to decaps the corresponding ciphertext.
 /// Also known as USK_{id}.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct UserSecretKey {
-    d0: [G2Affine; 2],
-    d1: [G2Affine; 2],
-    kprime: G2Affine,
+    d0: [G2Affine; 2], // K_i
+    d1: [G2Affine; 2], // K'_i,1
+    d2: [G2Affine; 2], // K'_i,2
 }
 
 /// Encrypted message. Can only be decapsed with a corresponding user secret key.
@@ -111,29 +108,38 @@ impl IBKEM for CGWKV1 {
             [rand_scalar(rng), rand_scalar(rng)],
         ];
 
+        let wprime = [
+            [rand_scalar(rng), rand_scalar(rng)],
+            [rand_scalar(rng), rand_scalar(rng)],
+        ];
+
         let k = [rand_scalar(rng), rand_scalar(rng)];
 
-        let w0ta = [
+        let w0a = [
             w0[0][0] * a[0] + w0[1][0] * a[1],
             w0[0][1] * a[0] + w0[1][1] * a[1],
         ];
-        let w1ta = [
+        let w1a = [
             w1[0][0] * a[0] + w1[1][0] * a[1],
             w1[0][1] * a[0] + w1[1][1] * a[1],
         ];
+        let wprimea = [
+            wprime[0][0] * a[0] + wprime[1][0] * a[1],
+            wprime[0][1] * a[0] + wprime[1][1] * a[1],
+        ];
 
-        let wprime = rand_scalar(rng);
         let batch = [
             g1 * a[0],
             g1 * a[1],
-            g1 * w0ta[0],
-            g1 * w0ta[1],
-            g1 * w1ta[0],
-            g1 * w1ta[1],
-            g1 * (wprime * a[0]),
+            g1 * w0a[0],
+            g1 * w0a[1],
+            g1 * w1a[0],
+            g1 * w1a[1],
+            g1 * wprimea[0],
+            g1 * wprimea[1],
         ];
 
-        let mut out = [G1Affine::default(); 7];
+        let mut out = [G1Affine::default(); 8];
         G1Projective::batch_normalize(&batch, &mut out);
         let kta_t = pairing(&g1, &g2) * (k[0] * a[0] + k[1] * a[1]);
 
@@ -142,7 +148,7 @@ impl IBKEM for CGWKV1 {
                 a_1: [out[0], out[1]],
                 w0ta_1: [out[2], out[3]],
                 w1ta_1: [out[4], out[5]],
-                wprime_1: out[6],
+                wprime_1: [out[6], out[7]],
                 kta_t,
             },
             SecretKey {
@@ -172,22 +178,23 @@ impl IBKEM for CGWKV1 {
             g2 * br[0],
             g2 * br[1],
             g2 * (sk.k[0]
-                + (br[0] * sk.w0[0][0]
+                - (br[0] * sk.w0[0][0]
                     + br[1] * sk.w0[0][1]
                     + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
             g2 * (sk.k[1]
-                + (br[0] * sk.w0[1][0]
+                - (br[0] * sk.w0[1][0]
                     + br[1] * sk.w0[1][1]
                     + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
-            g2 * (br[0] * sk.wprime),
+            g2 * -(br[0] * sk.wprime[0][0] + br[1] * sk.wprime[0][1]),
+            g2 * -(br[0] * sk.wprime[1][0] + br[1] * sk.wprime[1][1]),
         ];
-        let mut out = [G2Affine::default(); 5];
+        let mut out = [G2Affine::default(); 6];
         G2Projective::batch_normalize(&batch, &mut out);
 
         UserSecretKey {
-            d0: [out[0], out[1]],
-            d1: [out[2], out[3]],
-            kprime: out[4],
+            d0: [out[0], out[1]], // K_i
+            d1: [out[2], out[3]], // K'_i,0
+            d2: [out[4], out[5]], // K'_i,1
         }
     }
 
@@ -201,11 +208,14 @@ impl IBKEM for CGWKV1 {
 
         let x = id.to_scalar();
         let c0 = [(pk.a_1[0] * s).into(), (pk.a_1[1] * s).into()];
-        let y = hash_g1_to_scalar(c0[0]);
+        let xprime = hash_g1_to_scalar(c0[0]);
 
+        // TODO: can optimize with left-to-right square-and-multiply.
         let c1: [G1Affine; 2] = [
-            ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x)) + (pk.wprime_1 * (s * y))).into(),
-            ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x))).into(),
+            ((pk.w0ta_1[0] * s) + (pk.w1ta_1[0] * (s * x)) + (pk.wprime_1[0] * (s * xprime)))
+                .into(),
+            ((pk.w0ta_1[1] * s) + (pk.w1ta_1[1] * (s * x)) + (pk.wprime_1[1] * (s * xprime)))
+                .into(),
         ];
 
         (CipherText { c0, c1 }, SharedSecret::from(&k))
@@ -221,14 +231,15 @@ impl IBKEM for CGWKV1 {
         usk: &UserSecretKey,
         ct: &CipherText,
     ) -> Result<SharedSecret, Error> {
-        let y = hash_g1_to_scalar(ct.c0[0]);
-        let z: G2Affine = (usk.d1[0] + (usk.kprime * y)).into();
+        let yprime = hash_g1_to_scalar(ct.c0[0]);
+        let tmp1: G2Affine = (usk.d1[0] + (usk.d2[0] * yprime)).into();
+        let tmp2: G2Affine = (usk.d1[1] + (usk.d2[1] * yprime)).into();
 
         let m = multi_miller_loop(&[
-            (&ct.c0[0], &G2Prepared::from(z)),
-            (&ct.c0[1], &G2Prepared::from(usk.d1[1])),
-            (&-ct.c1[0], &G2Prepared::from(usk.d0[0])),
-            (&-ct.c1[1], &G2Prepared::from(usk.d0[1])),
+            (&ct.c0[0], &G2Prepared::from(tmp1)),
+            (&ct.c0[1], &G2Prepared::from(tmp2)),
+            (&ct.c1[0], &G2Prepared::from(usk.d0[0])),
+            (&ct.c1[1], &G2Prepared::from(usk.d0[1])),
         ])
         .final_exponentiation();
 
@@ -269,66 +280,11 @@ impl Compress for PublicKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; PK_BYTES] {
-        let mut res = [0u8; PK_BYTES];
-
-        for i in 0..2 {
-            let x = i * G1_BYTES;
-            let y = x + G1_BYTES;
-            res[x..y].copy_from_slice(&self.a_1[i].to_compressed());
-            res[96 + x..96 + y].copy_from_slice(&self.w0ta_1[i].to_compressed());
-            res[192 + x..192 + y].copy_from_slice(&self.w1ta_1[i].to_compressed());
-        }
-        res[288..336].copy_from_slice(&self.wprime_1.to_compressed());
-        res[336..].copy_from_slice(&self.kta_t.to_compressed());
-
-        res
+        unimplemented!();
     }
 
-    fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
-        // from_compressed_unchecked doesn't check whether the element has
-        // a cofactor. To mount an attack using a cofactor an attacker
-        // must be able to manipulate the public parameters. But then the
-        // attacker can simply use parameters they generated themselves.
-        // Thus checking for a cofactor is superfluous.
-        let mut a_1 = [G1Affine::default(); 2];
-        let mut w0ta_1 = [G1Affine::default(); 2];
-        let mut w1ta_1 = [G1Affine::default(); 2];
-        let mut wprime_1 = G1Affine::default();
-        let mut kta_t = Gt::default();
-
-        let mut is_some = Choice::from(1u8);
-        for i in 0..2 {
-            let x = i * G1_BYTES;
-            let y = x + G1_BYTES;
-            is_some &= G1Affine::from_compressed_unchecked(bytes[x..y].try_into().unwrap())
-                .map(|el| a_1[i] = el)
-                .is_some();
-            is_some &=
-                G1Affine::from_compressed_unchecked(bytes[96 + x..96 + y].try_into().unwrap())
-                    .map(|el| w0ta_1[i] = el)
-                    .is_some();
-            is_some &=
-                G1Affine::from_compressed_unchecked(bytes[192 + x..192 + y].try_into().unwrap())
-                    .map(|el| w1ta_1[i] = el)
-                    .is_some();
-        }
-        is_some &= G1Affine::from_compressed_unchecked(bytes[288..336].try_into().unwrap())
-            .map(|el| wprime_1 = el)
-            .is_some();
-        is_some &= Gt::from_compressed_unchecked(bytes[336..624].try_into().unwrap())
-            .map(|el| kta_t = el)
-            .is_some();
-
-        CtOption::new(
-            PublicKey {
-                a_1,
-                w0ta_1,
-                w1ta_1,
-                wprime_1,
-                kta_t,
-            },
-            is_some,
-        )
+    fn from_bytes(_bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
+        unimplemented!();
     }
 }
 
@@ -337,69 +293,11 @@ impl Compress for SecretKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; SK_BYTES] {
-        let mut res = [0u8; SK_BYTES];
-        let (mut x, mut y);
-
-        for i in 0..2 {
-            x = i * SCALAR_BYTES;
-            y = x + SCALAR_BYTES;
-            res[x..y].copy_from_slice(&self.b[i].to_bytes());
-            res[64 + x..64 + y].copy_from_slice(&self.k[i].to_bytes());
-
-            for j in 0..2 {
-                x = (i * 2 + j) * SCALAR_BYTES;
-                y = x + SCALAR_BYTES;
-                res[128 + x..128 + y].copy_from_slice(&self.w0[i][j].to_bytes());
-                res[256 + x..256 + y].copy_from_slice(&self.w1[i][j].to_bytes());
-            }
-        }
-        res[384..].copy_from_slice(&self.wprime.to_bytes());
-
-        res
+        unimplemented!();
     }
 
-    fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
-        let mut b = [Scalar::default(); 2];
-        let mut k = [Scalar::default(); 2];
-        let mut w0 = [[Scalar::default(); 2]; 2];
-        let mut w1 = [[Scalar::default(); 2]; 2];
-        let mut wprime = Scalar::default();
-
-        let mut is_some = Choice::from(1u8);
-        for i in 0..2 {
-            let x = i * SCALAR_BYTES;
-            let y = x + SCALAR_BYTES;
-            is_some &= Scalar::from_bytes(&bytes[x..y].try_into().unwrap())
-                .map(|s| b[i] = s)
-                .is_some();
-            is_some &= Scalar::from_bytes(&bytes[64 + x..64 + y].try_into().unwrap())
-                .map(|s| k[i] = s)
-                .is_some();
-            for j in 0..2 {
-                let x = (i * 2 + j) * SCALAR_BYTES;
-                let y = x + SCALAR_BYTES;
-                is_some &= Scalar::from_bytes(&bytes[128 + x..128 + y].try_into().unwrap())
-                    .map(|s| w0[i][j] = s)
-                    .is_some();
-                is_some &= Scalar::from_bytes(&bytes[256 + x..256 + y].try_into().unwrap())
-                    .map(|s| w1[i][j] = s)
-                    .is_some();
-            }
-        }
-        is_some &= Scalar::from_bytes(&bytes[384..].try_into().unwrap())
-            .map(|s| wprime = s)
-            .is_some();
-
-        CtOption::new(
-            SecretKey {
-                b,
-                k,
-                w0,
-                w1,
-                wprime,
-            },
-            is_some,
-        )
+    fn from_bytes(_bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
+        unimplemented!();
     }
 }
 
@@ -408,40 +306,11 @@ impl Compress for UserSecretKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; USK_BYTES] {
-        let mut res = [0u8; USK_BYTES];
-
-        for i in 0..2 {
-            let x = i * G2_BYTES;
-            let y = x + G2_BYTES;
-            res[x..y].copy_from_slice(&self.d0[i].to_compressed());
-            res[192 + x..192 + y].copy_from_slice(&self.d1[i].to_compressed());
-        }
-        res[384..].copy_from_slice(&self.kprime.to_compressed());
-
-        res
+        unimplemented!();
     }
 
-    fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
-        let mut d0 = [G2Affine::default(); 2];
-        let mut d1 = [G2Affine::default(); 2];
-        let mut kprime = G2Affine::default();
-
-        let mut is_some = Choice::from(1u8);
-        for i in 0..2 {
-            let x = i * G2_BYTES;
-            let y = x + G2_BYTES;
-            is_some &= G2Affine::from_compressed(&bytes[x..y].try_into().unwrap())
-                .map(|el| d0[i] = el)
-                .is_some();
-            is_some &= G2Affine::from_compressed(&bytes[192 + x..192 + y].try_into().unwrap())
-                .map(|el| d1[i] = el)
-                .is_some();
-        }
-        is_some &= G2Affine::from_compressed(&bytes[384..].try_into().unwrap())
-            .map(|el| kprime = el)
-            .is_some();
-
-        CtOption::new(UserSecretKey { d0, d1, kprime }, is_some)
+    fn from_bytes(_bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
+        unimplemented!();
     }
 }
 
@@ -450,35 +319,11 @@ impl Compress for CipherText {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; CT_BYTES] {
-        let mut res = [0u8; CT_BYTES];
-
-        for i in 0..2 {
-            let x = i * G1_BYTES;
-            let y = x + G1_BYTES;
-            res[x..y].copy_from_slice(&self.c0[i].to_compressed());
-            res[96 + x..96 + y].copy_from_slice(&self.c1[i].to_compressed());
-        }
-
-        res
+        unimplemented!();
     }
 
-    fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
-        let mut c0 = [G1Affine::default(); 2];
-        let mut c1 = [G1Affine::default(); 2];
-
-        let mut is_some = Choice::from(1u8);
-        for i in 0..2 {
-            let x = i * G1_BYTES;
-            let y = x + G1_BYTES;
-            is_some &= G1Affine::from_compressed(&bytes[x..y].try_into().unwrap())
-                .map(|el| c0[i] = el)
-                .is_some();
-            is_some &= G1Affine::from_compressed(&bytes[96 + x..96 + y].try_into().unwrap())
-                .map(|el| c1[i] = el)
-                .is_some();
-        }
-
-        CtOption::new(CipherText { c0, c1 }, is_some)
+    fn from_bytes(_bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
+        unimplemented!();
     }
 }
 
