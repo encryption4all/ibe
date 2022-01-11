@@ -4,8 +4,6 @@
 //! CCA security due to a generalized approach from Kiltz & Vahlis.
 //!  * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!  * Published in: CT-RSA, 2008
-//!
-//! Important notice: Keep in mind that the security of this scheme has not formally been proven.
 
 use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::util::*;
@@ -177,18 +175,18 @@ impl IBKEM for CGWKV1 {
         let br = [sk.b[0] * r, sk.b[1] * r];
 
         let batch = [
-            g2 * -br[0],
-            g2 * -br[1],
+            g2 * br[0],
+            g2 * br[1],
             g2 * (sk.k[0]
-                + (br[0] * sk.w0[0][0]
+                - (br[0] * sk.w0[0][0]
                     + br[1] * sk.w0[0][1]
                     + id * (br[0] * sk.w1[0][0] + br[1] * sk.w1[0][1]))),
             g2 * (sk.k[1]
-                + (br[0] * sk.w0[1][0]
+                - (br[0] * sk.w0[1][0]
                     + br[1] * sk.w0[1][1]
                     + id * (br[0] * sk.w1[1][0] + br[1] * sk.w1[1][1]))),
-            g2 * (br[0] * sk.wprime[0][0] + br[1] * sk.wprime[0][1]),
-            g2 * (br[0] * sk.wprime[1][0] + br[1] * sk.wprime[1][1]),
+            g2 * -(br[0] * sk.wprime[0][0] + br[1] * sk.wprime[0][1]),
+            g2 * -(br[0] * sk.wprime[1][0] + br[1] * sk.wprime[1][1]),
         ];
         let mut out = [G2Affine::default(); 6];
         G2Projective::batch_normalize(&batch, &mut out);
@@ -282,11 +280,11 @@ impl Compress for PublicKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; PK_BYTES] {
-        unimplemented! {};
+        unimplemented!();
     }
 
     fn from_bytes(_bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
-        unimplemented! {};
+        unimplemented!();
     }
 }
 
@@ -295,11 +293,11 @@ impl Compress for SecretKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; SK_BYTES] {
-        unimplemented! {};
+        unimplemented!();
     }
 
     fn from_bytes(_bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
-        unimplemented! {};
+        unimplemented!();
     }
 }
 
@@ -308,11 +306,11 @@ impl Compress for UserSecretKey {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; USK_BYTES] {
-        unimplemented! {};
+        unimplemented!();
     }
 
     fn from_bytes(_bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
-        unimplemented! {};
+        unimplemented!();
     }
 }
 
@@ -321,11 +319,11 @@ impl Compress for CipherText {
     type Output = [u8; Self::OUTPUT_SIZE];
 
     fn to_bytes(&self) -> [u8; CT_BYTES] {
-        unimplemented! {};
+        unimplemented!();
     }
 
     fn from_bytes(_bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
-        unimplemented! {};
+        unimplemented!();
     }
 }
 
