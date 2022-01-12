@@ -169,6 +169,41 @@ macro_rules! bench_ibe {
     };
 }
 
+fn bench_abe_rwac(criterion: &mut Criterion) {
+    use group::ff::Field;
+    use ibe::kem::rwac::{gen_a, AccessPolicy, RWAC};
+    use irmaseal_curve::Scalar;
+
+    for n in [1, 10, 100] {
+        let mut rng = rand::thread_rng();
+        let (mpk, msk) = RWAC::setup(&mut rng);
+
+        let s: Vec<Scalar> = (0..n).map(|_| Scalar::random(&mut rng)).collect();
+        let usk_s = RWAC::extract_usk(&msk, &s[..], &mut rng);
+
+        let a = gen_a(n);
+        let ρ = s.clone();
+        let ap = AccessPolicy { a, ρ };
+
+        let (ct, _) = RWAC::encaps(&mpk, &ap, &mut rng);
+
+        criterion.bench_function(&format!("RWAC setup, n = {}", n.to_string()), |b| {
+            let mut rng = rand::thread_rng();
+            b.iter(|| RWAC::setup(&mut rng))
+        });
+        criterion.bench_function(&format!("RWAC extract, n = {}", n.to_string()), move |b| {
+            let mut rng = rand::thread_rng();
+            b.iter(|| RWAC::extract_usk(black_box(&msk), black_box(&s[..]), black_box(&mut rng)))
+        });
+        criterion.bench_function(&format!("RWAC encrypt, n = {}", n.to_string()), move |b| {
+            b.iter(|| RWAC::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
+        });
+        criterion.bench_function(&format!("RWAC decrypt, n = {}", n.to_string()), move |b| {
+            b.iter(|| RWAC::decaps(black_box(&usk_s), black_box(&ct)))
+        });
+    }
+}
+
 bench_kem!(kiltz_vahlis_one, KV1);
 bench_kem!(cgw_kv1, CGWKV1);
 bench_kem!(cgw_kv2, CGWKV2);
@@ -210,4 +245,10 @@ criterion_group!(
     bench_ibe_cgw,
 );
 
-criterion_main!(kem_benches, pke_benches);
+criterion_group!(
+    name = abe_benches;
+    config = Criterion::default().warm_up_time(Duration::new(0, 500));
+    targets = bench_abe_rwac
+);
+
+criterion_main!(kem_benches, pke_benches, abe_benches);

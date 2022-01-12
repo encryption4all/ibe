@@ -5,7 +5,6 @@
 //! - Kiltz-Vahlis IBE1,
 //! - CGWFO (CCA security through FO-transform),
 //! - CGWKV1-3 (CCA security due to technique by Kiltz-Vahlis applied to CGW).
-
 #[cfg(feature = "kv1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "kv1")))]
 pub mod kiltz_vahlis_one;
@@ -25,6 +24,10 @@ pub mod cgw_kv2;
 #[cfg(feature = "cgwkv3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cgwkv3")))]
 pub mod cgw_kv3;
+
+#[cfg(feature = "rwac")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwac")))]
+pub mod rwac;
 
 use crate::util::*;
 use crate::{Compress, Derive};
@@ -58,7 +61,7 @@ pub enum Error {
     IncorrectSize,
 }
 
-/// Identity-based public key encapsulation mechanism (IBKEM).
+/// Identity-based key encapsulation mechanism (IBKEM).
 pub trait IBKEM: Clone {
     /// Scheme identifier.
     const IDENTIFIER: &'static str;
