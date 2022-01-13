@@ -29,6 +29,10 @@ pub mod cgw_kv3;
 #[cfg_attr(docsrs, doc(cfg(feature = "rwac")))]
 pub mod rwac;
 
+#[cfg(feature = "rwac_cpa")]
+#[cfg_attr(docsrs, doc(cfg(feature = "rwac_cpa")))]
+pub mod rwac_cpa;
+
 use crate::util::*;
 use crate::{Compress, Derive};
 use irmaseal_curve::Gt;

@@ -79,6 +79,7 @@ kv1 = []
 waters = []
 waters_naccache = []
 rwac = []
+rwac_cpa = []
 
 [lib]
 bench = false

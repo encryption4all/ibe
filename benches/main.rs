@@ -204,6 +204,50 @@ fn bench_abe_rwac(criterion: &mut Criterion) {
     }
 }
 
+fn bench_abe_rwac_cpa(criterion: &mut Criterion) {
+    use group::ff::Field;
+    use ibe::kem::rwac_cpa::{gen_a, AccessPolicy, RWACCPA};
+    use irmaseal_curve::Scalar;
+
+    for n in [1, 10, 100] {
+        let mut rng = rand::thread_rng();
+        let (mpk, msk) = RWACCPA::setup(&mut rng);
+
+        let s: Vec<Scalar> = (0..n).map(|_| Scalar::random(&mut rng)).collect();
+        let usk_s = RWACCPA::extract_usk(&msk, &s[..], &mut rng);
+
+        let a = gen_a(n);
+        let ρ = s.clone();
+        let ap = AccessPolicy { a, ρ };
+
+        let (ct, _) = RWACCPA::encaps(&mpk, &ap, &mut rng);
+
+        criterion.bench_function(&format!("RWACCPA setup, n = {}", n.to_string()), |b| {
+            let mut rng = rand::thread_rng();
+            b.iter(|| RWACCPA::setup(&mut rng))
+        });
+        criterion.bench_function(
+            &format!("RWACCPA extract, n = {}", n.to_string()),
+            move |b| {
+                let mut rng = rand::thread_rng();
+                b.iter(|| {
+                    RWACCPA::extract_usk(black_box(&msk), black_box(&s[..]), black_box(&mut rng))
+                })
+            },
+        );
+        criterion.bench_function(
+            &format!("RWACCPA encrypt, n = {}", n.to_string()),
+            move |b| {
+                b.iter(|| RWACCPA::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
+            },
+        );
+        criterion.bench_function(
+            &format!("RWACCPA decrypt, n = {}", n.to_string()),
+            move |b| b.iter(|| RWACCPA::decaps(black_box(&usk_s), black_box(&ct))),
+        );
+    }
+}
+
 bench_kem!(kiltz_vahlis_one, KV1);
 bench_kem!(cgw_kv1, CGWKV1);
 bench_kem!(cgw_kv2, CGWKV2);
@@ -216,9 +260,6 @@ bench_ibe!(waters_naccache, WatersNaccache);
 bench_ibe!(cgw, CGW);
 
 bench_multi_kem!(cgw_fo, CGWFO);
-//bench_multi_kem!(cgw_kv1, CGWKV1);
-//bench_multi_kem!(cgw_kv2, CGWKV2);
-//bench_multi_kem!(cgw_kv3, CGWKV3);
 
 criterion_group!(
     name = kem_benches;
@@ -230,9 +271,6 @@ criterion_group!(
     bench_kem_cgw_kv2,
     bench_kem_cgw_kv3,
     bench_multi_kem_cgw_fo,
-//    bench_multi_kem_cgw_kv1,
-//    bench_multi_kem_cgw_kv2,
-//    bench_multi_kem_cgw_kv3,
 );
 
 criterion_group!(
@@ -247,8 +285,10 @@ criterion_group!(
 
 criterion_group!(
     name = abe_benches;
-    config = Criterion::default().warm_up_time(Duration::new(0, 500));
-    targets = bench_abe_rwac
+    config = Criterion::default().warm_up_time(Duration::new(0, 500)).sample_size(10);
+    targets =
+    bench_abe_rwac,
+    bench_abe_rwac_cpa
 );
 
 criterion_main!(kem_benches, pke_benches, abe_benches);

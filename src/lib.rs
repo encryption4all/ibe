@@ -46,7 +46,7 @@
 #[cfg(test)]
 extern crate std;
 
-#[cfg(feature = "rwac")]
+#[cfg(any(feature = "rwac", feature = "rwac_cpa"))]
 #[macro_use]
 extern crate alloc;
 
