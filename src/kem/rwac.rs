@@ -14,7 +14,7 @@ pub type LSSSMatrix = Vec<Vec<Scalar>>;
 #[derive(Clone)]
 pub struct AccessPolicy {
     pub a: LSSSMatrix,
-    pub ρ: Vec<Scalar>,
+    pub rho: Vec<Scalar>,
 }
 
 /// Generates an LSSS matrix of size n for AND-policies.
@@ -368,10 +368,14 @@ impl RWAC {
 
         let c2 = [
             (0..n1)
-                .map(|j| (pk.b_mat[1][0] * (s_vec[j] * ap.ρ[j]) + pk.b_mat[0][0] * s_vec[j]).into())
+                .map(|j| {
+                    (pk.b_mat[1][0] * (s_vec[j] * ap.rho[j]) + pk.b_mat[0][0] * s_vec[j]).into()
+                })
                 .collect(),
             (0..n1)
-                .map(|j| (pk.b_mat[1][1] * (s_vec[j] * ap.ρ[j]) + pk.b_mat[0][1] * s_vec[j]).into())
+                .map(|j| {
+                    (pk.b_mat[1][1] * (s_vec[j] * ap.rho[j]) + pk.b_mat[0][1] * s_vec[j]).into()
+                })
                 .collect(),
         ];
 
@@ -406,7 +410,7 @@ impl RWAC {
         let yprime = hash_g1_to_scalar(ct.c0[0]);
 
         let upsilon: Vec<usize> = (0..n1)
-            .filter(|j| usk.attrs.contains(&ct.ap.ρ[*j]))
+            .filter(|j| usk.attrs.contains(&ct.ap.rho[*j]))
             .collect();
 
         let mut pairs = Vec::<(G1Affine, G2Prepared)>::new();
@@ -432,7 +436,7 @@ impl RWAC {
             ));
 
             for j in upsilon.iter() {
-                let idx = usk.attrs.iter().position(|&x| x == ct.ap.ρ[*j]).unwrap();
+                let idx = usk.attrs.iter().position(|&x| x == ct.ap.rho[*j]).unwrap();
                 pairs.push((ct.c2[i][*j], G2Prepared::from(usk.k2_attrs[idx][i])));
                 pairs.push((ct.c3[i][*j], G2Prepared::from(usk.k1_attrs[idx][i])));
             }
@@ -460,10 +464,10 @@ mod tests {
         let usk_s = RWAC::extract_usk(&msk, &s[..], &mut rng);
 
         let a = gen_a(n);
-        let mut ρ = s.clone();
+        let mut rho = s.clone();
 
-        ρ.reverse(); // should still work
-        let ap = AccessPolicy { a, ρ };
+        rho.reverse(); // should still work
+        let ap = AccessPolicy { a, rho };
 
         let (ct, ss) = RWAC::encaps(&mpk, &ap, &mut rng);
 

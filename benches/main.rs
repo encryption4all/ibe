@@ -169,7 +169,7 @@ macro_rules! bench_ibe {
     };
 }
 
-fn bench_abe_rwac(criterion: &mut Criterion) {
+fn bench_abe_rwac_cca_this_paper(criterion: &mut Criterion) {
     use group::ff::Field;
     use ibe::kem::rwac::{gen_a, AccessPolicy, RWAC};
     use irmaseal_curve::Scalar;
@@ -182,25 +182,32 @@ fn bench_abe_rwac(criterion: &mut Criterion) {
         let usk_s = RWAC::extract_usk(&msk, &s[..], &mut rng);
 
         let a = gen_a(n);
-        let ρ = s.clone();
-        let ap = AccessPolicy { a, ρ };
+        let rho = s.clone();
+        let ap = AccessPolicy { a, rho };
 
         let (ct, _) = RWAC::encaps(&mpk, &ap, &mut rng);
 
-        criterion.bench_function(&format!("RWAC setup, n = {}", n.to_string()), |b| {
+        criterion.bench_function(&format!("RWAC CCA setup, n = {}", n.to_string()), |b| {
             let mut rng = rand::thread_rng();
             b.iter(|| RWAC::setup(&mut rng))
         });
-        criterion.bench_function(&format!("RWAC extract, n = {}", n.to_string()), move |b| {
-            let mut rng = rand::thread_rng();
-            b.iter(|| RWAC::extract_usk(black_box(&msk), black_box(&s[..]), black_box(&mut rng)))
-        });
-        criterion.bench_function(&format!("RWAC encrypt, n = {}", n.to_string()), move |b| {
-            b.iter(|| RWAC::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
-        });
-        criterion.bench_function(&format!("RWAC decrypt, n = {}", n.to_string()), move |b| {
-            b.iter(|| RWAC::decaps(black_box(&usk_s), black_box(&ct)))
-        });
+        criterion.bench_function(
+            &format!("RWAC CCA extract, n = {}", n.to_string()),
+            move |b| {
+                let mut rng = rand::thread_rng();
+                b.iter(|| {
+                    RWAC::extract_usk(black_box(&msk), black_box(&s[..]), black_box(&mut rng))
+                })
+            },
+        );
+        criterion.bench_function(
+            &format!("RWAC CCA encrypt, n = {}", n.to_string()),
+            move |b| b.iter(|| RWAC::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng))),
+        );
+        criterion.bench_function(
+            &format!("RWAC CCA decrypt, n = {}", n.to_string()),
+            move |b| b.iter(|| RWAC::decaps(black_box(&usk_s), black_box(&ct))),
+        );
     }
 }
 
@@ -217,17 +224,17 @@ fn bench_abe_rwac_cpa(criterion: &mut Criterion) {
         let usk_s = RWACCPA::extract_usk(&msk, &s[..], &mut rng);
 
         let a = gen_a(n);
-        let ρ = s.clone();
-        let ap = AccessPolicy { a, ρ };
+        let rho = s.clone();
+        let ap = AccessPolicy { a, rho };
 
         let (ct, _) = RWACCPA::encaps(&mpk, &ap, &mut rng);
 
-        criterion.bench_function(&format!("RWACCPA setup, n = {}", n.to_string()), |b| {
+        criterion.bench_function(&format!("RWAC CPA setup, n = {}", n.to_string()), |b| {
             let mut rng = rand::thread_rng();
             b.iter(|| RWACCPA::setup(&mut rng))
         });
         criterion.bench_function(
-            &format!("RWACCPA extract, n = {}", n.to_string()),
+            &format!("RWAC CPA extract, n = {}", n.to_string()),
             move |b| {
                 let mut rng = rand::thread_rng();
                 b.iter(|| {
@@ -236,14 +243,114 @@ fn bench_abe_rwac_cpa(criterion: &mut Criterion) {
             },
         );
         criterion.bench_function(
-            &format!("RWACCPA encrypt, n = {}", n.to_string()),
+            &format!("RWAC CPA encrypt, n = {}", n.to_string()),
             move |b| {
                 b.iter(|| RWACCPA::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
             },
         );
         criterion.bench_function(
-            &format!("RWACCPA decrypt, n = {}", n.to_string()),
+            &format!("RWAC CPA decrypt, n = {}", n.to_string()),
             move |b| b.iter(|| RWACCPA::decaps(black_box(&usk_s), black_box(&ct))),
+        );
+    }
+}
+
+/// Estimates cost of CCA by delegability by using RWAC CPA.
+fn bench_abe_rwac_cca_del_est(criterion: &mut Criterion) {
+    use group::ff::Field;
+    use ibe::kem::rwac_cpa::{gen_a, AccessPolicy, RWACCPA};
+    use irmaseal_curve::Scalar;
+
+    for n in [1, 10, 100] {
+        let mut rng = rand::thread_rng();
+        let (mpk, msk) = RWACCPA::setup(&mut rng);
+
+        // setsize + 256
+        let s: Vec<Scalar> = (0..n + 256).map(|_| Scalar::random(&mut rng)).collect();
+        let usk_s = RWACCPA::extract_usk(&msk, &s[..], &mut rng);
+
+        let a = gen_a(n + 128);
+        // attribute size in policy = n + 128
+        let rho = s[..n + 128].to_vec();
+        let ap = AccessPolicy { a, rho };
+
+        let (ct, _) = RWACCPA::encaps(&mpk, &ap, &mut rng);
+
+        criterion.bench_function(&format!("RWAC del est setup, n = {}", n.to_string()), |b| {
+            let mut rng = rand::thread_rng();
+            b.iter(|| RWACCPA::setup(&mut rng))
+        });
+        criterion.bench_function(
+            &format!("RWAC del est extract, n = {}", n.to_string()),
+            move |b| {
+                let mut rng = rand::thread_rng();
+                b.iter(|| {
+                    RWACCPA::extract_usk(black_box(&msk), black_box(&s[..]), black_box(&mut rng))
+                })
+            },
+        );
+        criterion.bench_function(
+            &format!("RWAC del est encrypt, n = {}", n.to_string()),
+            move |b| {
+                b.iter(|| RWACCPA::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
+            },
+        );
+        criterion.bench_function(
+            &format!("RWAC del est decrypt, n = {}", n.to_string()),
+            move |b| b.iter(|| RWACCPA::decaps(black_box(&usk_s), black_box(&ct))),
+        );
+    }
+}
+
+/// Estimates cost of CCA by verifiablity by using RWAC CPA.
+fn bench_abe_rwac_cca_ver_est(criterion: &mut Criterion) {
+    use group::ff::Field;
+    use ibe::kem::rwac_cpa::{gen_a, AccessPolicy, RWACCPA};
+    use irmaseal_curve::Scalar;
+
+    for n in [1, 10, 100] {
+        let mut rng = rand::thread_rng();
+        let (mpk, msk) = RWACCPA::setup(&mut rng);
+
+        // setsize remains the same, see actual set passed to extract_usk
+        let s: Vec<Scalar> = (0..n + 1).map(|_| Scalar::random(&mut rng)).collect();
+        let usk_s = RWACCPA::extract_usk(&msk, &s[..], &mut rng);
+
+        // access policy grows by one
+        let a = gen_a(n + 1);
+        let rho = s[..].to_vec();
+        let ap = AccessPolicy { a, rho };
+
+        let (ct, _) = RWACCPA::encaps(&mpk, &ap, &mut rng);
+
+        criterion.bench_function(&format!("RWAC ver est setup, n = {}", n.to_string()), |b| {
+            let mut rng = rand::thread_rng();
+            b.iter(|| RWACCPA::setup(&mut rng))
+        });
+        criterion.bench_function(
+            &format!("RWAC ver est extract, n = {}", n.to_string()),
+            move |b| {
+                let mut rng = rand::thread_rng();
+                b.iter(|| {
+                    RWACCPA::extract_usk(black_box(&msk), black_box(&s[..n]), black_box(&mut rng))
+                })
+            },
+        );
+        criterion.bench_function(
+            &format!("RWAC ver est encrypt, n = {}", n.to_string()),
+            move |b| {
+                b.iter(|| RWACCPA::encaps(black_box(&mpk), black_box(&ap), black_box(&mut rng)))
+            },
+        );
+        criterion.bench_function(
+            &format!("RWAC ver est decrypt, n = {}", n.to_string()),
+            move |b| {
+                b.iter(|| {
+                    // verifiability requires 2 decryptions essentially
+                    RWACCPA::decaps(black_box(&usk_s), black_box(&ct)).unwrap();
+                    RWACCPA::decaps(black_box(&usk_s), black_box(&ct)).unwrap();
+                })
+            },
         );
     }
 }
@@ -287,8 +394,10 @@ criterion_group!(
     name = abe_benches;
     config = Criterion::default().warm_up_time(Duration::new(0, 500)).sample_size(10);
     targets =
-    bench_abe_rwac,
-    bench_abe_rwac_cpa
+    bench_abe_rwac_cpa,
+    bench_abe_rwac_cca_this_paper,
+    bench_abe_rwac_cca_del_est,
+    bench_abe_rwac_cca_ver_est,
 );
 
 criterion_main!(kem_benches, pke_benches, abe_benches);
