@@ -5,6 +5,7 @@
 //! - Kiltz-Vahlis IBE1,
 //! - CGWFO (CCA security through FO-transform),
 //! - CGWKV1-3 (CCA security due to technique by Kiltz-Vahlis applied to CGW).
+
 #[cfg(feature = "kv1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "kv1")))]
 pub mod kiltz_vahlis_one;
@@ -13,28 +14,17 @@ pub mod kiltz_vahlis_one;
 #[cfg_attr(docsrs, doc(cfg(feature = "cgwfo")))]
 pub mod cgw_fo;
 
-#[cfg(feature = "cgwkv1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv1")))]
-pub mod cgw_kv1;
+#[cfg(feature = "cgwkv")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv")))]
+pub mod cgw_kv;
 
-#[cfg(feature = "cgwkv2")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv2")))]
-pub mod cgw_kv2;
-
-#[cfg(feature = "cgwkv3")]
-#[cfg_attr(docsrs, doc(cfg(feature = "cgwkv3")))]
-pub mod cgw_kv3;
-
-#[cfg(feature = "rwac")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rwac")))]
-pub mod rwac;
-
-#[cfg(feature = "rwac_cpa")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rwac_cpa")))]
-pub mod rwac_cpa;
+#[cfg(feature = "mr")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mr")))]
+pub mod mr;
 
 use crate::util::*;
 use crate::{Compress, Derive};
+use core::ops::BitXorAssign;
 use irmaseal_curve::Gt;
 use rand::{CryptoRng, Rng};
 
@@ -54,6 +44,14 @@ pub struct SharedSecret(pub [u8; SS_BYTES]);
 impl From<&Gt> for SharedSecret {
     fn from(el: &Gt) -> Self {
         SharedSecret(shake256::<SS_BYTES>(&el.to_compressed()))
+    }
+}
+
+impl BitXorAssign for SharedSecret {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        for i in 0..SS_BYTES {
+            self.0[i] ^= rhs.0[i];
+        }
     }
 }
 
@@ -85,9 +83,6 @@ pub trait IBKEM: Clone {
     /// Identity.
     type Id: Copy + Default + Derive;
 
-    /// Shared secret.
-    type Ss: Copy;
-
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;
 
@@ -118,7 +113,7 @@ pub trait IBKEM: Clone {
         pk: &Self::Pk,
         id: &Self::Id,
         rng: &mut R,
-    ) -> (Self::Ct, Self::Ss);
+    ) -> (Self::Ct, SharedSecret);
 
     /// Decrypt a ciphertext using a user secret key to retrieve the shared secret.
     ///
@@ -126,5 +121,9 @@ pub trait IBKEM: Clone {
     ///
     /// For some schemes this operation can fail explicitly, e.g., when
     /// a bogus ciphertext is used as input.
-    fn decaps(mpk: Option<&Self::Pk>, usk: &Self::Usk, ct: &Self::Ct) -> Result<Self::Ss, Error>;
+    fn decaps(
+        mpk: Option<&Self::Pk>,
+        usk: &Self::Usk,
+        ct: &Self::Ct,
+    ) -> Result<SharedSecret, Error>;
 }

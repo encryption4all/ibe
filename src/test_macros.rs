@@ -33,29 +33,29 @@ macro_rules! test_kem {
         #[test]
         fn eq_encaps_decaps() {
             let results = perform_default();
-            let k2 = $name::decaps(Some(&results.pk), &results.usk, &results.c).unwrap();
+            let k2 = <$name as IBKEM>::decaps(Some(&results.pk), &results.usk, &results.c).unwrap();
 
             assert_eq!(results.k, k2);
         }
 
-        //#[test]
-        //fn eq_serialize_deserialize() {
-        //    let result = perform_default();
+        #[test]
+        fn eq_serialize_deserialize() {
+            let result = perform_default();
 
-        //    assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
-        //    assert_eq!(
-        //        result.sk,
-        //        SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
-        //    );
-        //    assert_eq!(
-        //        result.usk,
-        //        UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
-        //    );
-        //    assert_eq!(
-        //        result.c,
-        //        CipherText::from_bytes(&result.c.to_bytes()).unwrap()
-        //    );
-        //}
+            assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
+            assert_eq!(
+                result.sk,
+                SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
+            );
+            assert_eq!(
+                result.usk,
+                UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
+            );
+            assert_eq!(
+                result.c,
+                CipherText::from_bytes(&result.c.to_bytes()).unwrap()
+            );
+        }
     };
 }
 
@@ -63,6 +63,9 @@ macro_rules! test_multi_kem {
     ($name: ident) => {
         #[test]
         fn eq_multi_encaps_decaps() {
+            use crate::kem::mr::{MultiRecipient, MultiRecipientCiphertext};
+            use alloc::vec::Vec;
+
             let id1: &str = "email:w.geraedts@sarif.nl";
             let id2: &str = "email:l.botros@cs.ru.nl";
             let mut rng = rand::thread_rng();
@@ -76,15 +79,26 @@ macro_rules! test_multi_kem {
             let usk1 = $name::extract_usk(Some(&pk), &sk, &kid[0], &mut rng);
             let usk2 = $name::extract_usk(Some(&pk), &sk, &kid[1], &mut rng);
 
-            let mut cts = [<$name as IBKEM>::Ct::default(); 2];
+            let (cts, k) = $name::multi_encaps(&pk, &kid, &mut rng);
 
-            let k = $name::multi_encaps(&pk, &kid, &mut rng, &mut cts).unwrap();
+            let cts_compressed: Vec<[u8; MultiRecipientCiphertext::<$name>::OUTPUT_SIZE]> =
+                cts.iter().map(|ct| ct.to_bytes()).collect();
 
-            let k1 = $name::decaps(Some(&pk), &usk1, &cts[0]).unwrap();
-            let k2 = $name::decaps(Some(&pk), &usk2, &cts[1]).unwrap();
+            let cts_recovered: Vec<MultiRecipientCiphertext<$name>> = cts_compressed
+                .iter()
+                .map(|bytes| MultiRecipientCiphertext::<$name>::from_bytes(bytes).unwrap())
+                .collect();
 
-            assert!(k == k1 && k == k2);
-            assert_ne!(cts[0], cts[1])
+            let k1 =
+                <$name as MultiRecipient<$name>>::multi_decaps(Some(&pk), &usk1, &cts_recovered[0])
+                    .unwrap();
+            let k2 =
+                <$name as MultiRecipient<$name>>::multi_decaps(Some(&pk), &usk2, &cts_recovered[1])
+                    .unwrap();
+
+            assert_eq!(k, k1);
+            assert_eq!(k, k2);
+            assert_ne!(k, SharedSecret([0u8; 32]));
         }
     };
 }

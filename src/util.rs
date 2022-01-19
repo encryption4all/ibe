@@ -108,7 +108,7 @@ impl Derive for Identity {
 impl Identity {
     /// Create a scalar from an identity.
     #[allow(unused)]
-    pub(crate) fn to_scalar(&self) -> Scalar {
+    pub(crate) fn to_scalar(self) -> Scalar {
         Scalar::from_bytes_wide(&self.0)
     }
 }

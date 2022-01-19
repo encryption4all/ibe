@@ -27,9 +27,7 @@ macro_rules! print_sizes_pke {
 fn main() {
     println!("KEM sizes in bytes:\n");
     print_sizes_kem!(cgw_fo);
-    print_sizes_kem!(cgw_kv1);
-    print_sizes_kem!(cgw_kv2);
-    print_sizes_kem!(cgw_kv3);
+    print_sizes_kem!(cgw_kv);
     print_sizes_kem!(kiltz_vahlis_one);
     println!("PKE sizes in bytes:\n");
     print_sizes_pke!(waters);

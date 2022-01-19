@@ -46,8 +46,7 @@
 #[cfg(test)]
 extern crate std;
 
-#[cfg(any(feature = "rwac", feature = "rwac_cpa"))]
-#[macro_use]
+#[cfg(feature = "mr")]
 extern crate alloc;
 
 #[cfg(test)]
@@ -70,7 +69,7 @@ pub trait Compress: Copy {
     type Output: Sized + Copy + Clone + AsRef<[u8]>;
 
     /// Compresses this artifact to a short serialized byte representation.
-    fn to_bytes(self: &Self) -> Self::Output;
+    fn to_bytes(&self) -> Self::Output;
 
     /// Decompresses a serialized artifact.
     fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;

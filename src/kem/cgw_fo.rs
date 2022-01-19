@@ -59,7 +59,7 @@ impl Compress for UserSecretKey {
 
 /// The CCA2 secure KEM that results by applying the implicit rejection
 /// variant of the Fujisaki-Okamoto transform to the Chen-Gay-Wee IBE scheme.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct CGWFO;
 
 impl IBKEM for CGWFO {
@@ -69,7 +69,6 @@ impl IBKEM for CGWFO {
     type Sk = SecretKey;
     type Usk = UserSecretKey;
     type Ct = CipherText;
-    type Ss = SharedSecret;
     type Id = Identity;
 
     const PK_BYTES: usize = PK_BYTES;
@@ -89,10 +88,7 @@ impl IBKEM for CGWFO {
     ) -> UserSecretKey {
         let usk = CGW::extract_usk(None, sk, id, rng);
 
-        UserSecretKey {
-            usk,
-            id: id.clone(),
-        }
+        UserSecretKey { usk, id: *id }
     }
 
     fn encaps<R: Rng + CryptoRng>(
@@ -100,9 +96,17 @@ impl IBKEM for CGWFO {
         id: &Identity,
         rng: &mut R,
     ) -> (CipherText, SharedSecret) {
-        let mut cts = [CipherText::default()];
-        let k = Self::multi_encaps(pk, &[id], rng, &mut cts).unwrap();
-        (cts[0], k)
+        let m = Msg::random(rng);
+
+        let mut pre_coins = [0u8; MSG_BYTES + ID_BYTES];
+        pre_coins[..MSG_BYTES].copy_from_slice(&m.to_bytes());
+
+        pre_coins[MSG_BYTES..].copy_from_slice(&id.0);
+        let coins = sha3_512(&pre_coins);
+
+        let ct = CGW::encrypt(pk, id, &m, &coins);
+
+        (ct, SharedSecret::from(&m))
     }
 
     /// Decapsulate a shared secret from the ciphertext.
@@ -142,40 +146,8 @@ impl IBKEM for CGWFO {
     }
 }
 
-impl CGWFO {
-    /// Encapsulate the same shared secret in multiple ciphertexts.
-    ///
-    /// This allows to sent an encrypted broadcast message to multiple receivers.
-    ///
-    /// # Errors
-    ///
-    /// If the number of identities does not match the number of preallocated ciphertexts
-    /// an [`Error::IncorrectCiphertextsSize`] is given.
-    pub fn multi_encaps<R: Rng + CryptoRng>(
-        pk: &PublicKey,
-        ids: &[&Identity],
-        rng: &mut R,
-        cts: &mut [CipherText],
-    ) -> Result<SharedSecret, Error> {
-        if ids.len() != cts.len() {
-            Err(Error::IncorrectSize)?
-        }
-
-        let m = Msg::random(rng);
-
-        let mut pre_coins = [0u8; MSG_BYTES + ID_BYTES];
-        pre_coins[..MSG_BYTES].copy_from_slice(&m.to_bytes());
-
-        for (i, id) in ids.iter().enumerate() {
-            pre_coins[MSG_BYTES..].copy_from_slice(&id.0);
-            let coins = sha3_512(&pre_coins);
-
-            cts[i] = CGW::encrypt(pk, id, &m, &coins);
-        }
-
-        Ok(SharedSecret::from(&m))
-    }
-}
+#[cfg(feature = "mr")]
+impl crate::kem::mr::MultiRecipient<CGWFO> for CGWFO {}
 
 #[cfg(test)]
 mod tests {
@@ -183,5 +155,7 @@ mod tests {
     use crate::Derive;
 
     test_kem!(CGWFO);
+
+    #[cfg(feature = "mr")]
     test_multi_kem!(CGWFO);
 }
