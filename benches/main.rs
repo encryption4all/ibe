@@ -80,7 +80,7 @@ macro_rules! bench_multi_kem {
                 let kid = <$struct as IBKEM>::Id::derive(id);
 
                 let (pk, _sk) = $struct::setup(&mut rng);
-                let kids = [&kid; 10];
+                let kids = [kid; 10];
 
                 criterion.bench_function(
                     &format!("kem_{} multi-encaps x10", stringify!($scheme)).to_string(),

@@ -1,4 +1,4 @@
-//! IND-sID-CPA secure IBE from the Boyen & Waters IBE scheme
+//! IND-sID-CPA secure IBE from the Boyen & Waters IBE scheme.
 //! * From: "[Anonymous Hierarchical Identity-Based Encryption (Without Random Oracles)](https://link.springer.com/content/pdf/10.1007/11818175_17.pdf)"
 //!
 //! The structure of the byte serialisation of the various datastructures is not guaranteed

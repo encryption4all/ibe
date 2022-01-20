@@ -66,13 +66,14 @@ macro_rules! test_multi_kem {
             use crate::kem::mr::{MultiRecipient, MultiRecipientCiphertext};
             use alloc::vec::Vec;
 
+            let mut rng = rand::thread_rng();
+
             let id1: &str = "email:w.geraedts@sarif.nl";
             let id2: &str = "email:l.botros@cs.ru.nl";
-            let mut rng = rand::thread_rng();
             let ids = [id1.as_bytes(), id2.as_bytes()];
             let kid = [
-                &<$name as IBKEM>::Id::derive(ids[0]),
-                &<$name as IBKEM>::Id::derive(ids[1]),
+                <$name as IBKEM>::Id::derive(ids[0]),
+                <$name as IBKEM>::Id::derive(ids[1]),
             ];
 
             let (pk, sk) = $name::setup(&mut rng);
@@ -89,12 +90,8 @@ macro_rules! test_multi_kem {
                 .map(|bytes| MultiRecipientCiphertext::<$name>::from_bytes(bytes).unwrap())
                 .collect();
 
-            let k1 =
-                <$name as MultiRecipient<$name>>::multi_decaps(Some(&pk), &usk1, &cts_recovered[0])
-                    .unwrap();
-            let k2 =
-                <$name as MultiRecipient<$name>>::multi_decaps(Some(&pk), &usk2, &cts_recovered[1])
-                    .unwrap();
+            let k1 = $name::multi_decaps(Some(&pk), &usk1, &cts_recovered[0]).unwrap();
+            let k2 = $name::multi_decaps(Some(&pk), &usk2, &cts_recovered[1]).unwrap();
 
             assert_eq!(k, k1);
             assert_eq!(k, k2);

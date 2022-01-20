@@ -55,6 +55,7 @@ impl BitXorAssign for SharedSecret {
     }
 }
 
+/// Opaque error in case a KEM protocol fails.
 #[derive(Debug)]
 pub struct Error;
 

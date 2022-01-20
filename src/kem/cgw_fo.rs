@@ -118,7 +118,7 @@ impl IBKEM for CGWFO {
     ///
     /// # Errors
     ///
-    /// This function returns an [`Error::DecapsulationError`] when an illegitimate ciphertext is encountered (explicit rejection).
+    /// This function returns an [`Error`] when an illegitimate ciphertext is encountered (explicit rejection).
     fn decaps(
         opk: Option<&PublicKey>,
         usk: &UserSecretKey,

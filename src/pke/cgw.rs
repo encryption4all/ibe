@@ -1,4 +1,5 @@
 //! IND-ID-CPA secure IBE by Chen, Gay and Wee.
+//! * From: "[Improved Dual System ABE in Prime-Order Groups via Predicate Encodings](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!
 //! This file contains the passively secure public-key encryption algorithm (PKE).
 //! All structs' byte serialization use compression.

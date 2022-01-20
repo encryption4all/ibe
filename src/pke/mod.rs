@@ -1,17 +1,18 @@
-//! This module contains traits and implementations for some IBE schemes.
+//! This module contains traits and implementations for some IBE schemes based on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) .
 //! All schemes are IND-CPA secure. References to the original appearance in the literature
 //! are listed in the top of each source file.
 //!
-//! # Note
+//! # Notes
+//!
 //! Some scheme's API slightly differ; some require the system's public key for extraction.
 //! These parameters are made optional.
 //!
 //! Among the schemes are:
 //!
-//! - Waters
-//! - Waters-Naccache
-//! - Boyen-Waters
-//! - Chen-Gay-Wee (or short, CGW)
+//! - Waters,
+//! - Waters-Naccache,
+//! - Boyen-Waters,
+//! - Chen-Gay-Wee (or short, CGW).
 
 #[cfg(feature = "boyen_waters")]
 #[cfg_attr(docsrs, doc(cfg(feature = "boyen_waters")))]

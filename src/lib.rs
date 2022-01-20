@@ -13,9 +13,10 @@
 //!
 //! The following example is similar for all the KEM schemes.
 //! Check the corresponding tests for concrete examples per scheme.
-//! To actually run this example, do not forget to enable the "kv1" feature.
+//! To actually run this example, do not forget to enable the `kv1` feature.
 //!
 //! ```
+//! use ibe::Derive;
 //! use ibe::kem::IBKEM;
 //! use ibe::kem::kiltz_vahlis_one::*;
 //!
@@ -75,6 +76,7 @@ pub trait Compress: Copy {
     fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;
 }
 
+/// Trait that is used to derive identities for schemes.
 pub trait Derive {
     /// Derives an identity from a byte slice for a particular scheme.
     fn derive(b: &[u8]) -> Self;
