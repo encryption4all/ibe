@@ -4,7 +4,7 @@
 //!
 //! - Kiltz-Vahlis IBE1,
 //! - CGWFO (CCA security through FO-transform),
-//! - CGWKV1-3 (CCA security due to technique by Kiltz-Vahlis applied to CGW).
+//! - CGWKV (CCA security due to technique by Kiltz-Vahlis applied to CGW).
 
 #[cfg(feature = "kv1")]
 #[cfg_attr(docsrs, doc(cfg(feature = "kv1")))]

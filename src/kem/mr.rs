@@ -6,8 +6,13 @@ use core::convert::TryInto;
 use rand::{CryptoRng, Rng};
 use subtle::CtOption;
 
+#[cfg(feature = "cgwfo")]
 use crate::kem::cgw_fo::CGWFO;
+
+#[cfg(feature = "cgwkv")]
 use crate::kem::cgw_kv::CGWKV;
+
+#[cfg(feature = "kv1")]
 use crate::kem::kiltz_vahlis_one::KV1;
 
 #[derive(Clone, Copy)]
@@ -79,6 +84,11 @@ macro_rules! impl_mrct_compress {
     };
 }
 
+#[cfg(feature = "cgwkv")]
 impl_mrct_compress!(CGWKV);
+
+#[cfg(feature = "cgwfo")]
 impl_mrct_compress!(CGWFO);
+
+#[cfg(feature = "kv1")]
 impl_mrct_compress!(KV1);

@@ -25,7 +25,8 @@ required-features = [
   "cgwkv",
   "boyen_waters",
   "waters",
-  "waters_naccache"
+  "waters_naccache",
+  "mr"
 ]
 
 [[bin]]
