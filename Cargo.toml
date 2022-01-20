@@ -10,7 +10,7 @@ keywords = ["ibe", "encryption", "ecc", "no_std"]
 license = "MIT"
 name = "ibe"
 repository = "https://github.com/encryption4all/ibe"
-version = "0.2.0"
+version = "0.2.0-beta.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -44,14 +44,15 @@ required-features = [
 arrayref = "0.3.6"
 group = "0.10.0"
 rand = "0.8.4"
+irmaseal-curve = { version = "0.1.3", features = [
+  "alloc",
+  "group",
+  "pairings"
+] }
 
 [dependencies.byteorder]
 default-features = false
 version = "1.3"
-
-[dependencies.irmaseal-curve]
-features = ["alloc", "group", "pairings"]
-git = "https://github.com/encryption4all/irmaseal-curve.git"
 
 [dependencies.subtle]
 default-features = false
