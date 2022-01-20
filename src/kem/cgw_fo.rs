@@ -141,7 +141,7 @@ impl IBKEM for CGWFO {
         if c.ct_eq(&c2).into() {
             Ok(SharedSecret::from(&m))
         } else {
-            Err(Error::Decapsulation)
+            Err(Error)
         }
     }
 }

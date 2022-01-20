@@ -56,12 +56,7 @@ impl BitXorAssign for SharedSecret {
 }
 
 #[derive(Debug)]
-pub enum Error {
-    /// Error indicating that the decapsulation was not successful.
-    Decapsulation,
-    /// Error that the given buffer of ciphertexts is not the correct size.
-    IncorrectSize,
-}
+pub struct Error;
 
 /// Identity-based key encapsulation mechanism (IBKEM).
 pub trait IBKEM: Clone {
