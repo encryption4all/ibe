@@ -55,7 +55,7 @@ pub struct SecretKey {
 
 /// User secret key. Can be used to decrypt the corresponding ciphertext.
 /// Also known as USK_{id}.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct UserSecretKey {
     d0: [G2Affine; 2],
     d1: [G2Affine; 2],
@@ -438,15 +438,6 @@ impl ConditionallySelectable for CipherText {
                 G1Affine::conditional_select(&a.c1[1], &b.c1[1], choice),
             ],
             cprime: Gt::conditional_select(&a.cprime, &b.cprime, choice),
-        }
-    }
-}
-
-impl Default for UserSecretKey {
-    fn default() -> Self {
-        UserSecretKey {
-            d0: [G2Affine::default(); 2],
-            d1: [G2Affine::default(); 2],
         }
     }
 }
