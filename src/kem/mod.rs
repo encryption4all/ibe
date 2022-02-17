@@ -31,7 +31,7 @@ use rand::{CryptoRng, Rng};
 /// Size of the shared secret in bytes.
 pub const SS_BYTES: usize = 32;
 
-/// All KEMs in this library produce a 64-byte shared secret.
+/// All KEMs in this library produce a 32-byte shared secret.
 ///
 /// This shared secret has roughly a 127 bits of security.
 /// This is due to the fact that BLS12-381 targets this security level (optimistically).
