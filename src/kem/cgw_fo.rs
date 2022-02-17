@@ -7,7 +7,7 @@
 //! Symmetric primitives G and H instantiated using sha3_512 and sha3_256, respectively.
 //! To output a bigger secret SHAKE256 can be used with a bigger output buffer.
 //!
-//! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate :(
+//! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate.
 
 use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::pke::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};

@@ -77,10 +77,13 @@ pub trait Compress: Copy {
 }
 
 /// Trait that is used to derive identities for schemes.
-pub trait Derive {
-    /// Derives an identity from a byte slice for a particular scheme.
+pub trait Derive: Sized {
+    /// Derive an identity for a scheme from a byte slice.
     fn derive(b: &[u8]) -> Self;
 
-    /// Derives an identity from a string for a particular scheme.
-    fn derive_str(s: &str) -> Self;
+    /// Derive an identity for a schem from a string.
+    /// Internally uses UTF-8 encoding `as_bytes()`.
+    fn derive_str(s: &str) -> Self {
+        Self::derive(s.as_bytes())
+    }
 }

@@ -116,7 +116,7 @@ pub trait IBKEM: Clone {
     /// Optionally requires a public key to perform this operation.
     ///
     /// For some schemes this operation can fail explicitly, e.g., when
-    /// a bogus ciphertext is used as input.
+    /// an illegitimate ciphertext is used as input.
     fn decaps(
         mpk: Option<&Self::Pk>,
         usk: &Self::Usk,
