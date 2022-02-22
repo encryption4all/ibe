@@ -34,7 +34,7 @@ use crate::{Compress, Derive};
 use group::Group;
 use rand::{CryptoRng, Rng};
 
-/// Identity-based public key encryption scheme (IBPKE).
+/// Identity-based encryption scheme (IBE).
 pub trait IBE {
     /// Master public key (Mpk).
     type Pk: Compress;
