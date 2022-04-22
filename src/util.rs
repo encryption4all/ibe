@@ -1,5 +1,5 @@
 use crate::{Compress, Derive};
-use group::{ff::Field, Group};
+use group::{ff::Field, Group, UncompressedEncoding};
 use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
 use rand::{CryptoRng, RngCore};
 use subtle::CtOption;
@@ -76,6 +76,22 @@ pub fn shake256<const N: usize>(slice: &[u8]) -> [u8; N] {
     digest.finalize(&mut buf);
 
     buf
+}
+
+/// Random-prefix collision resistant (RPC) hash function.
+pub fn rpc<Gr: UncompressedEncoding>(k: &[u8; 32], gs: &[Gr]) -> Scalar {
+    let mut digest = tiny_keccak::Sha3::v512();
+
+    digest.update(k);
+
+    for g in gs.iter() {
+        digest.update(g.to_uncompressed().as_ref())
+    }
+
+    let mut buf = [0u8; 64];
+    digest.finalize(&mut buf);
+
+    Scalar::from_bytes_wide(&buf)
 }
 
 /// Byte representation of an identity.
