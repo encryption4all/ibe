@@ -1,21 +1,37 @@
-//! IND-ID-CPA secure IBE from the Waters scheme on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381).
+//! IND-ID-CPA secure IBE from the Waters scheme.
 //! * From: "[Efficient Identity-Based Encryption Without Random Oracles](https://link.springer.com/chapter/10.1007/11426639_7)"
 //! * Published in: EUROCRYPT, 2005
 
+use crate::util::*;
+use crate::{pke::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use rand::Rng;
+use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
+use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
-use crate::util::*;
-use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt};
+#[allow(unused_imports)]
+use group::Group;
 
 const HASH_BIT_LEN: usize = 256;
 const HASH_BYTE_LEN: usize = HASH_BIT_LEN / 8;
 
 const CHUNKS: usize = HASH_BIT_LEN;
-
 const PARAMETERSIZE: usize = CHUNKS * 48;
-const PUBLICKEYSIZE: usize = 2 * 48 + 2 * 96 + PARAMETERSIZE;
+
+/// Size of the compressed message in bytes.
+pub const MSG_BYTES: usize = GT_BYTES;
+
+/// Size of the compressed master public key in bytes.
+pub const PK_BYTES: usize = 2 * 48 + 2 * 96 + PARAMETERSIZE;
+
+/// Size of the compressed master secret key in bytes.
+pub const SK_BYTES: usize = G1_BYTES;
+
+/// Size of the compressed user secret key in bytes.
+pub const USK_BYTES: usize = G1_BYTES + G2_BYTES;
+
+/// Size of the compressed ciphertext key in bytes.
+pub const CT_BYTES: usize = G1_BYTES + G2_BYTES + GT_BYTES;
 
 /// Public key parameters used for entanglement with identities.
 struct Parameters([G1Affine; CHUNKS]);
@@ -52,8 +68,7 @@ pub struct Identity([u8; HASH_BYTE_LEN]);
 /// A point on the paired curve that can be encrypted and decrypted.
 ///
 /// You can use the byte representation to derive an AES key.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Message(Gt);
+pub type Msg = Gt;
 
 /// Encrypted message. Can only be decrypted with an user secret key.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -61,36 +76,6 @@ pub struct CipherText {
     c1: Gt,
     c2: G2Affine,
     c3: G1Affine,
-}
-
-/// Generate a keypair used by the Private Key Generator (PKG).
-pub fn setup<R: Rng>(rng: &mut R) -> (PublicKey, SecretKey) {
-    let g: G2Affine = rand_g2(rng).into();
-
-    let alpha = rand_scalar(rng);
-    let g2 = (g * alpha).into();
-
-    let g1 = rand_g1(rng).into();
-    let uprime = rand_g1(rng).into();
-
-    let mut u = Parameters([G1Affine::default(); CHUNKS]);
-    for ui in u.0.iter_mut() {
-        *ui = rand_g1(rng).into();
-    }
-
-    let pk = PublicKey {
-        g,
-        g1,
-        g2,
-        uprime,
-        u,
-    };
-
-    let g1prime: G1Affine = (g1 * alpha).into();
-
-    let sk = SecretKey { g1prime };
-
-    (pk, sk)
 }
 
 /// Common operation used in extraction and encryption to entangle
@@ -103,125 +88,93 @@ fn entangle(pk: &PublicKey, v: &Identity) -> G1Projective {
     ucoll
 }
 
-/// Extract an user secret key for a given identity.
-pub fn extract_usk<R: Rng>(
-    pk: &PublicKey,
-    sk: &SecretKey,
-    v: &Identity,
-    rng: &mut R,
-) -> UserSecretKey {
-    let r = rand_scalar(rng);
-    let ucoll = entangle(pk, v);
-    let d1 = (sk.g1prime + (ucoll * r)).into();
-    let d2 = (pk.g * r).into();
+/// The Waters identity-based encryption scheme.
+pub struct Waters;
 
-    UserSecretKey { d1, d2 }
-}
+impl IBE for Waters {
+    type Pk = PublicKey;
+    type Sk = SecretKey;
+    type Usk = UserSecretKey;
+    type Ct = CipherText;
+    type Msg = Msg;
+    type Id = Identity;
+    type RngBytes = [u8; 64];
 
-/// Encrypt a message using the PKG public key and an identity.
-pub fn encrypt<R: Rng>(pk: &PublicKey, v: &Identity, m: &Message, rng: &mut R) -> CipherText {
-    let t = rand_scalar(rng);
+    const PK_BYTES: usize = PK_BYTES;
+    const SK_BYTES: usize = SK_BYTES;
+    const USK_BYTES: usize = USK_BYTES;
+    const CT_BYTES: usize = CT_BYTES;
+    const MSG_BYTES: usize = MSG_BYTES;
 
-    let c3coll = entangle(pk, v);
-    let c1 = irmaseal_curve::pairing(&pk.g1, &pk.g2) * t + m.0;
-    let c2 = (pk.g * t).into();
-    let c3 = (c3coll * t).into();
+    /// Generate a keypair used by the Private Key Generator (PKG).
+    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+        let g: G2Affine = rand_g2(rng).into();
 
-    CipherText { c1, c2, c3 }
-}
+        let alpha = rand_scalar(rng);
+        let g2 = (g * alpha).into();
 
-/// Decrypt ciphertext to a message using a user secret key.
-pub fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Message {
-    let m = c.c1
-        + multi_miller_loop(&[
-            (&c.c3, &G2Prepared::from(usk.d2)),
-            (&-usk.d1, &G2Prepared::from(c.c2)),
-        ])
-        .final_exponentiation();
+        let g1 = rand_g1(rng).into();
+        let uprime = rand_g1(rng).into();
 
-    Message(m)
-}
+        let mut u = Parameters([G1Affine::default(); CHUNKS]);
+        for ui in u.0.iter_mut() {
+            *ui = rand_g1(rng).into();
+        }
 
-impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PUBLICKEYSIZE] {
-        let mut res = [0u8; PUBLICKEYSIZE];
-        let (g, g1, g2, uprime, u) = mut_array_refs![&mut res, 96, 48, 96, 48, PARAMETERSIZE];
-        *g = self.g.to_compressed();
-        *g1 = self.g1.to_compressed();
-        *g2 = self.g2.to_compressed();
-        *uprime = self.uprime.to_compressed();
-        *u = self.u.to_bytes();
-        res
+        let pk = PublicKey {
+            g,
+            g1,
+            g2,
+            uprime,
+            u,
+        };
+
+        let g1prime: G1Affine = (g1 * alpha).into();
+
+        let sk = SecretKey { g1prime };
+
+        (pk, sk)
     }
 
-    pub fn from_bytes(bytes: &[u8; PUBLICKEYSIZE]) -> CtOption<Self> {
-        let (g, g1, g2, uprime, u) = array_refs![bytes, 96, 48, 96, 48, PARAMETERSIZE];
+    /// Extract an user secret key for a given identity.
+    fn extract_usk<R: Rng + CryptoRng>(
+        opk: Option<&PublicKey>,
+        sk: &SecretKey,
+        v: &Identity,
+        rng: &mut R,
+    ) -> UserSecretKey {
+        let pk = opk.unwrap();
 
-        let g = G2Affine::from_compressed(g);
-        let g1 = G1Affine::from_compressed(g1);
-        let g2 = G2Affine::from_compressed(g2);
-        let uprime = G1Affine::from_compressed(uprime);
-        let u = Parameters::from_bytes(u);
+        let r = rand_scalar(rng);
+        let ucoll = entangle(pk, v);
+        let d1 = (sk.g1prime + (ucoll * r)).into();
+        let d2 = (pk.g * r).into();
 
-        g.and_then(|g| {
-            g1.and_then(|g1| {
-                g2.and_then(|g2| {
-                    uprime.and_then(|uprime| {
-                        u.map(|u| PublicKey {
-                            g,
-                            g1,
-                            g2,
-                            uprime,
-                            u,
-                        })
-                    })
-                })
-            })
-        })
-    }
-}
-
-impl SecretKey {
-    pub fn to_bytes(&self) -> [u8; 48] {
-        self.g1prime.to_compressed()
+        UserSecretKey { d1, d2 }
     }
 
-    pub fn from_bytes(bytes: &[u8; 48]) -> CtOption<Self> {
-        G1Affine::from_compressed(bytes).map(|g1prime| SecretKey { g1prime })
-    }
-}
+    /// Encrypt a message using the PKG public key and an identity.
+    fn encrypt(pk: &PublicKey, v: &Identity, m: &Msg, rng_bytes: &Self::RngBytes) -> CipherText {
+        let t = Scalar::from_bytes_wide(rng_bytes);
 
-impl UserSecretKey {
-    pub fn to_bytes(&self) -> [u8; 144] {
-        let mut res = [0u8; 144];
-        let (d1, d2) = mut_array_refs![&mut res, 48, 96];
-        *d1 = self.d1.to_compressed();
-        *d2 = self.d2.to_compressed();
-        res
+        let c3coll = entangle(pk, v);
+        let c1 = irmaseal_curve::pairing(&pk.g1, &pk.g2) * t + m;
+        let c2 = (pk.g * t).into();
+        let c3 = (c3coll * t).into();
+
+        CipherText { c1, c2, c3 }
     }
 
-    pub fn from_bytes(bytes: &[u8; 144]) -> CtOption<Self> {
-        let (d1, d2) = array_refs![bytes, 48, 96];
+    /// Decrypt ciphertext to a message using a user secret key.
+    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
+        let m = c.c1
+            + multi_miller_loop(&[
+                (&c.c3, &G2Prepared::from(usk.d2)),
+                (&-usk.d1, &G2Prepared::from(c.c2)),
+            ])
+            .final_exponentiation();
 
-        let d1 = G1Affine::from_compressed(d1);
-        let d2 = G2Affine::from_compressed(d2);
-
-        d1.and_then(|d1| d2.map(|d2| UserSecretKey { d1, d2 }))
-    }
-}
-
-impl Message {
-    /// Generate a random point on the paired curve.
-    pub fn generate<R: Rng>(rng: &mut R) -> Self {
-        Self(rand_gt(rng))
-    }
-
-    pub fn to_bytes(&self) -> [u8; 288] {
-        self.0.to_compressed()
-    }
-
-    pub fn from_bytes(bytes: &[u8; 288]) -> CtOption<Self> {
-        Gt::from_compressed(bytes).map(Message)
+        m
     }
 }
 
@@ -282,16 +235,16 @@ impl Default for Parameters {
     }
 }
 
-impl Identity {
+impl Derive for Identity {
     /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
     /// Uses sha3-256 internally.
-    pub fn derive(b: &[u8]) -> Identity {
+    fn derive(b: &[u8]) -> Identity {
         Identity(sha3_256(b))
     }
 
     /// Hash a string slice to a set of Identity parameters.
     /// Directly converts characters to UTF-8 byte representation.
-    pub fn derive_str(s: &str) -> Identity {
+    fn derive_str(s: &str) -> Identity {
         Self::derive(s.as_bytes())
     }
 }
@@ -308,9 +261,89 @@ impl Clone for Identity {
 
 impl Copy for Identity {}
 
-impl CipherText {
-    pub fn to_bytes(&self) -> [u8; 432] {
-        let mut res = [0u8; 432];
+impl Compress for PublicKey {
+    const OUTPUT_SIZE: usize = PK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; PK_BYTES] {
+        let mut res = [0u8; PK_BYTES];
+        let (g, g1, g2, uprime, u) = mut_array_refs![&mut res, 96, 48, 96, 48, PARAMETERSIZE];
+        *g = self.g.to_compressed();
+        *g1 = self.g1.to_compressed();
+        *g2 = self.g2.to_compressed();
+        *uprime = self.uprime.to_compressed();
+        *u = self.u.to_bytes();
+        res
+    }
+
+    fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
+        let (g, g1, g2, uprime, u) = array_refs![bytes, 96, 48, 96, 48, PARAMETERSIZE];
+
+        let g = G2Affine::from_compressed(g);
+        let g1 = G1Affine::from_compressed(g1);
+        let g2 = G2Affine::from_compressed(g2);
+        let uprime = G1Affine::from_compressed(uprime);
+        let u = Parameters::from_bytes(u);
+
+        g.and_then(|g| {
+            g1.and_then(|g1| {
+                g2.and_then(|g2| {
+                    uprime.and_then(|uprime| {
+                        u.map(|u| PublicKey {
+                            g,
+                            g1,
+                            g2,
+                            uprime,
+                            u,
+                        })
+                    })
+                })
+            })
+        })
+    }
+}
+
+impl Compress for SecretKey {
+    const OUTPUT_SIZE: usize = SK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; SK_BYTES] {
+        self.g1prime.to_compressed()
+    }
+
+    fn from_bytes(bytes: &[u8; SK_BYTES]) -> CtOption<Self> {
+        G1Affine::from_compressed(bytes).map(|g1prime| SecretKey { g1prime })
+    }
+}
+
+impl Compress for UserSecretKey {
+    const OUTPUT_SIZE: usize = USK_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; USK_BYTES] {
+        let mut res = [0u8; USK_BYTES];
+        let (d1, d2) = mut_array_refs![&mut res, 48, 96];
+        *d1 = self.d1.to_compressed();
+        *d2 = self.d2.to_compressed();
+        res
+    }
+
+    fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
+        let (d1, d2) = array_refs![bytes, 48, 96];
+
+        let d1 = G1Affine::from_compressed(d1);
+        let d2 = G2Affine::from_compressed(d2);
+
+        d1.and_then(|d1| d2.map(|d2| UserSecretKey { d1, d2 }))
+    }
+}
+
+impl Compress for CipherText {
+    const OUTPUT_SIZE: usize = CT_BYTES;
+    type Output = [u8; Self::OUTPUT_SIZE];
+
+    fn to_bytes(&self) -> [u8; CT_BYTES] {
+        let mut res = [0u8; CT_BYTES];
         let (c1, c2, c3) = mut_array_refs![&mut res, 288, 96, 48];
         *c1 = self.c1.to_compressed();
         *c2 = self.c2.to_compressed();
@@ -318,7 +351,7 @@ impl CipherText {
         res
     }
 
-    pub fn from_bytes(bytes: &[u8; 432]) -> CtOption<Self> {
+    fn from_bytes(bytes: &[u8; CT_BYTES]) -> CtOption<Self> {
         let (c1, c2, c3) = array_refs![bytes, 288, 96, 48];
 
         let c1 = Gt::from_compressed(c1);
@@ -331,68 +364,5 @@ impl CipherText {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    const ID: &'static str = "email:w.geraedts@sarif.nl";
-
-    #[allow(dead_code)]
-    struct DefaultSubResults {
-        kid: Identity,
-        m: Message,
-        pk: PublicKey,
-        sk: SecretKey,
-        usk: UserSecretKey,
-        c: CipherText,
-    }
-
-    fn perform_default() -> DefaultSubResults {
-        let mut rng = rand::thread_rng();
-
-        let id = ID.as_bytes();
-        let kid = Identity::derive(id);
-
-        let m = Message::generate(&mut rng);
-
-        let (pk, sk) = setup(&mut rng);
-        let usk = extract_usk(&pk, &sk, &kid, &mut rng);
-
-        let c = encrypt(&pk, &kid, &m, &mut rng);
-
-        DefaultSubResults {
-            kid,
-            m,
-            pk,
-            sk,
-            usk,
-            c,
-        }
-    }
-
-    #[test]
-    fn eq_encrypt_decrypt() {
-        let results = perform_default();
-        let m2 = decrypt(&results.usk, &results.c);
-
-        assert_eq!(results.m, m2);
-    }
-
-    #[test]
-    fn eq_serialize_deserialize() {
-        let result = perform_default();
-
-        assert_eq!(result.m, Message::from_bytes(&result.m.to_bytes()).unwrap());
-        assert!(result.pk == PublicKey::from_bytes(&result.pk.to_bytes()).unwrap());
-        assert_eq!(
-            result.sk,
-            SecretKey::from_bytes(&result.sk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.usk,
-            UserSecretKey::from_bytes(&result.usk.to_bytes()).unwrap()
-        );
-        assert_eq!(
-            result.c,
-            CipherText::from_bytes(&result.c.to_bytes()).unwrap()
-        );
-    }
+    test_ibe!(Waters);
 }

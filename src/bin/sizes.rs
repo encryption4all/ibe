@@ -1,64 +1,37 @@
 //! This file produces a binary that prints the sizes of several IBE/KEM components
-//! such as the MPK, MSK, USK, CT.
+//! such as the MPK, MSK, USK, CT and MSG.
 
-/// Most common call convention
-macro_rules! print_sizes_kem1 {
+macro_rules! print_sizes_kem {
     ($scheme_name: ident) => {{
         use ibe::kem::$scheme_name::*;
-
-        let mut rng = rand::thread_rng();
-        let id = "email:w.geraedts@sarif.nl".as_bytes();
-        let kid = Identity::derive(id);
-
-        let (pk, sk) = setup(&mut rng);
-        let usk = extract_usk(&sk, &kid, &mut rng);
-        let (c, _k) = encaps(&pk, &kid, &mut rng);
-
-        let pk_bytes = pk.to_bytes();
-        let sk_bytes = sk.to_bytes();
-        let usk_bytes = usk.to_bytes();
-        let ct_bytes = c.to_bytes();
-
         println!(stringify!($scheme_name));
-        println!("MPK:\t{}", pk_bytes.len());
-        println!("MSK:\t{}", sk_bytes.len());
-        println!("USK:\t{}", usk_bytes.len());
-        println!("CT:\t{}\n", ct_bytes.len());
+        println!("MPK:\t{}", PK_BYTES);
+        println!("MSK:\t{}", SK_BYTES);
+        println!("USK:\t{}", USK_BYTES);
+        println!("CT:\t{}\n", CT_BYTES);
     }};
 }
 
-/// Slightly different convention: extract needs pk
-macro_rules! print_sizes_kem2 {
+macro_rules! print_sizes_pke {
     ($scheme_name: ident) => {{
-        use ibe::kem::$scheme_name::*;
-
-        let mut rng = rand::thread_rng();
-
-        let id = "email:w.geraedts@sarif.nl".as_bytes();
-        let kid = Identity::derive(id);
-
-        let (pk, sk) = setup(&mut rng);
-        let usk = extract_usk(&pk, &sk, &kid, &mut rng);
-        let (c, _k) = encaps(&pk, &kid, &mut rng);
-
-        let pk_bytes = pk.to_bytes();
-        let sk_bytes = sk.to_bytes();
-        let usk_bytes = usk.to_bytes();
-        let ct_bytes = c.to_bytes();
-
+        use ibe::pke::$scheme_name::*;
         println!(stringify!($scheme_name));
-        println!("MPK:\t{}", pk_bytes.len());
-        println!("MSK:\t{}", sk_bytes.len());
-        println!("USK:\t{}", usk_bytes.len());
-        println!("CT:\t{}\n", ct_bytes.len());
+        println!("MPK:\t{}", PK_BYTES);
+        println!("MSK:\t{}", SK_BYTES);
+        println!("USK:\t{}", USK_BYTES);
+        println!("CT:\t{}", CT_BYTES);
+        println!("MSG:\t{}\n", MSG_BYTES);
     }};
 }
 
 fn main() {
     println!("KEM sizes in bytes:\n");
-    print_sizes_kem1!(cgw_cpa);
-    print_sizes_kem1!(cgw_cca_fo);
-    print_sizes_kem1!(cgw_cca_kv);
-    print_sizes_kem2!(kiltz_vahlis_one);
-    print_sizes_kem2!(boyen_waters);
+    print_sizes_kem!(cgw_fo);
+    print_sizes_kem!(cgw_kv);
+    print_sizes_kem!(kiltz_vahlis_one);
+    println!("PKE sizes in bytes:\n");
+    print_sizes_pke!(waters);
+    print_sizes_pke!(waters_naccache);
+    print_sizes_pke!(boyen_waters);
+    print_sizes_pke!(cgw);
 }
