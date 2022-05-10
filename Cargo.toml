@@ -10,7 +10,7 @@ keywords = ["ibe", "encryption", "ecc", "no_std"]
 license = "MIT"
 name = "ibe"
 repository = "https://github.com/encryption4all/ibe"
-version = "0.2.0-beta.1"
+version = "0.2.0"
 
 [dependencies]
 arrayref = "0.3.6"
