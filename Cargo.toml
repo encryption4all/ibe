@@ -5,7 +5,7 @@ authors = [
 ]
 categories = ["cryptography", "no-std"]
 description = "Identity Based Encryption schemes on the BLS12-381 pairing-friendly elliptic curve"
-edition = "2018"
+edition = "2021"
 keywords = ["ibe", "encryption", "ecc", "no_std"]
 license = "MIT"
 name = "ibe"
