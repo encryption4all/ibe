@@ -47,7 +47,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose --release --features --all-features
+          args: --verbose --release --all-features
 
   no-std:
     name: Check no-std target ${{ matrix.target }}
@@ -74,4 +74,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --target ${{ matrix.target }} --no-default-features --all-features
+          args: --verbose --target ${{ matrix.target }} --all-features
