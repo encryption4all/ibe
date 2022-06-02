@@ -11,9 +11,9 @@
 //!
 //! # Examples
 //!
-//! The following example is similar for all the KEM schemes.
-//! Check the corresponding tests for concrete examples per scheme.
-//! To actually run this example, do not forget to enable the `kv1` feature.
+//! The following example is similar for all the KEM schemes. Check the corresponding tests for
+//! concrete examples per scheme. To actually run this example, do not forget to enable the `kv1`
+//! feature.
 //!
 //! ```
 //! use ibe::Derive;
@@ -24,7 +24,7 @@
 //! let mut rng = rand::thread_rng();
 //!
 //! // Derive an identity (specific to this scheme).
-//! let kid = <KV1 as IBKEM>::Id::derive(ID.as_bytes());
+//! let kid = <KV1 as IBKEM>::Id::derive_str(ID);
 //!
 //! // Generate a public-private-keypair for a trusted third party.
 //! let (pk, sk) = KV1::setup(&mut rng);
@@ -61,10 +61,10 @@ mod util;
 pub mod kem;
 pub mod pke;
 
-/// Artifacts of the system that are possibly sent over the network implement this trait.
+/// Artifacts of the system that can be compressed should implement this trait.
 ///
-/// Can be used compressed to (short) byte format and back.
-/// Each scheme has its own associated types and therefore produce diffently sized byte arrays.
+/// Secret artifacts such as the master secret key, user secret key should implement this in
+/// constant-time.
 pub trait Compress: Copy {
     const OUTPUT_SIZE: usize;
     type Output: Sized + Copy + Clone + AsRef<[u8]>;

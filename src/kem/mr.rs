@@ -84,7 +84,7 @@ pub trait MultiRecipient<K: IBKEM> {
         (cts, ss)
     }
 
-    /// Decapsulates the single shared secret from a MultiRecipientCiphertext.
+    /// Decapsulates the single shared secret from a [`MultiRecipientCiphertext`].
     ///
     /// # Notes
     ///
