@@ -57,17 +57,6 @@ required-features = [
   "mr"
 ]
 
-[[bin]]
-name = "sizes"
-required-features = [
-  "kv1",
-  "cgwfo",
-  "cgwkv",
-  "boyen_waters",
-  "waters",
-  "waters_naccache"
-]
-
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
