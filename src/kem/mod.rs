@@ -37,7 +37,7 @@ pub const SS_BYTES: usize = 32;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SharedSecret(pub [u8; SS_BYTES]);
 
-/// Uses SHAKE256 to derive a 64-byte shared secret from a target group element.
+/// Uses SHAKE256 to derive a 32-byte shared secret from a target group element.
 ///
 /// Internally compresses the target group element to byte representation.
 impl From<&Gt> for SharedSecret {
