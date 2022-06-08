@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use ibe::kem::IBKEM;
-//! use ibe::kem::mr::{MultiRecipient, MultiRecipientCiphertext};
+//! use ibe::kem::mkem::{MultiRecipient, MultiRecipientCiphertext};
 //! use ibe::kem::cgw_kv::CGWKV;
 //! use ibe::Derive;
 //!
@@ -24,9 +24,8 @@
 //! let usk2 = CGWKV::extract_usk(None, &sk, &derived[1], &mut rng);
 //!
 //! // Encapsulate a single session key for two recipients.
-//! let (cts, k) = CGWKV::multi_encaps(&pk, &derived[..], &mut rng);
-//!
-//! // NOTE: Here we would send ciphertext over the network.
+//! let (cts_iter, k) = CGWKV::multi_encaps(&pk, derived, &mut rng);
+//! let cts: Vec<MultiRecipientCiphertext<CGWKV>> = cts_iter.collect();
 //!
 //! let k1 = CGWKV::multi_decaps(Some(&pk), &usk1, &cts[0]).unwrap();
 //! let k2 = CGWKV::multi_decaps(Some(&pk), &usk2, &cts[1]).unwrap();
@@ -36,8 +35,7 @@
 //! ```
 
 use crate::kem::{Compress, Error, SharedSecret, IBKEM, SS_BYTES};
-use alloc::vec::Vec;
-use core::convert::TryInto;
+use core::slice::Iter;
 use rand::{CryptoRng, Rng};
 use subtle::CtOption;
 
@@ -59,27 +57,50 @@ pub struct MultiRecipientCiphertext<K: IBKEM> {
     ss_i: SharedSecret,
 }
 
+/// Iterator type for multi-recipient ciphertext.
+pub struct Ciphertexts<'a, K: IBKEM, R> {
+    ss: SharedSecret,
+    pk: &'a K::Pk,
+    ids: Iter<'a, K::Id>,
+    rng: &'a mut R,
+}
+
+impl<'a, K, R> Iterator for Ciphertexts<'a, K, R>
+where
+    K: IBKEM,
+    R: Rng + CryptoRng,
+{
+    type Item = MultiRecipientCiphertext<K>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let id = self.ids.next()?;
+
+        let (ct_i, mut ss_i) = <K as IBKEM>::encaps(self.pk, id, self.rng);
+        ss_i ^= self.ss;
+
+        Some(MultiRecipientCiphertext::<K> { ct_i, ss_i })
+    }
+}
+
 /// Trait that captures multi-recipient encapsulation/decapsulation.
 pub trait MultiRecipient<K: IBKEM> {
     /// Encapsulates a single shared secret for a multiple of counterparties.
-    fn multi_encaps<R: Rng + CryptoRng>(
-        pk: &<K as IBKEM>::Pk,
-        ids: &[<K as IBKEM>::Id],
-        rng: &mut R,
-    ) -> (Vec<MultiRecipientCiphertext<K>>, SharedSecret) {
-        let mut ss_bytes = [0u8; SS_BYTES];
-        rng.fill_bytes(&mut ss_bytes);
-        let ss = SharedSecret(ss_bytes);
+    fn multi_encaps<'a, R>(
+        pk: &'a <K as IBKEM>::Pk,
+        ids: impl IntoIterator<IntoIter = Iter<'a, K::Id>>,
+        rng: &'a mut R,
+    ) -> (Ciphertexts<'a, K, R>, SharedSecret)
+    where
+        R: Rng + CryptoRng,
+    {
+        let ss = SharedSecret::random(rng);
 
-        let cts = ids
-            .iter()
-            .map(|id| {
-                let (ct_i, mut ss_i) = <K as IBKEM>::encaps(pk, id, rng);
-                ss_i ^= ss;
-
-                MultiRecipientCiphertext::<K> { ct_i, ss_i }
-            })
-            .collect();
+        let cts = Ciphertexts {
+            ss,
+            pk,
+            rng,
+            ids: ids.into_iter(),
+        };
 
         (cts, ss)
     }
@@ -102,7 +123,7 @@ pub trait MultiRecipient<K: IBKEM> {
     }
 }
 
-macro_rules! impl_mrct_compress {
+macro_rules! impl_mkemct_compress {
     ($scheme: ident) => {
         impl Compress for MultiRecipientCiphertext<$scheme> {
             const OUTPUT_SIZE: usize = $scheme::CT_BYTES + SS_BYTES;
@@ -131,10 +152,10 @@ macro_rules! impl_mrct_compress {
 }
 
 #[cfg(feature = "cgwkv")]
-impl_mrct_compress!(CGWKV);
+impl_mkemct_compress!(CGWKV);
 
 #[cfg(feature = "cgwfo")]
-impl_mrct_compress!(CGWFO);
+impl_mkemct_compress!(CGWFO);
 
 #[cfg(feature = "kv1")]
-impl_mrct_compress!(KV1);
+impl_mkemct_compress!(KV1);

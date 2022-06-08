@@ -338,8 +338,8 @@ impl ConditionallySelectable for CipherText {
     }
 }
 
-#[cfg(feature = "mr")]
-impl crate::kem::mr::MultiRecipient<KV1> for KV1 {}
+#[cfg(feature = "mkem")]
+impl crate::kem::mkem::MultiRecipient<KV1> for KV1 {}
 
 #[cfg(test)]
 mod tests {
@@ -348,6 +348,6 @@ mod tests {
 
     test_kem!(KV1);
 
-    #[cfg(feature = "mr")]
+    #[cfg(feature = "mkem")]
     test_multi_kem!(KV1);
 }

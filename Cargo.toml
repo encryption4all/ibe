@@ -38,7 +38,7 @@ cgwkv = []
 kv1 = []
 waters = []
 waters_naccache = []
-mr = []
+mkem = []
 
 [lib]
 bench = false
@@ -54,7 +54,7 @@ required-features = [
   "boyen_waters",
   "waters",
   "waters_naccache",
-  "mr"
+  "mkem"
 ]
 
 [package.metadata.docs.rs]

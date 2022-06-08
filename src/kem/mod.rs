@@ -17,9 +17,9 @@ pub mod cgw_fo;
 #[cfg_attr(docsrs, doc(cfg(feature = "cgwkv")))]
 pub mod cgw_kv;
 
-#[cfg(feature = "mr")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mr")))]
-pub mod mr;
+#[cfg(feature = "mkem")]
+#[cfg_attr(docsrs, doc(cfg(feature = "mkem")))]
+pub mod mkem;
 
 use crate::util::*;
 use crate::{Compress, Derive};
@@ -51,6 +51,16 @@ impl BitXorAssign for SharedSecret {
         for i in 0..SS_BYTES {
             self.0[i] ^= rhs.0[i];
         }
+    }
+}
+
+impl SharedSecret {
+    /// Sample random shared secret.
+    fn random<R: Rng + CryptoRng>(r: &mut R) -> Self {
+        let mut ss_bytes = [0u8; SS_BYTES];
+        r.fill_bytes(&mut ss_bytes);
+
+        SharedSecret(ss_bytes)
     }
 }
 

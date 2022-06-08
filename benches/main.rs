@@ -71,7 +71,7 @@ macro_rules! bench_multi_kem {
         paste! {
             fn [<bench_multi_kem_ $scheme>](criterion: &mut Criterion) {
                 use ibe::kem::$scheme::*;
-                use ibe::kem::mr::MultiRecipient;
+                use ibe::kem::mkem::MultiRecipient;
                 use ibe::{kem::IBKEM, Derive};
 
                 let mut rng = rand::thread_rng();
@@ -89,7 +89,7 @@ macro_rules! bench_multi_kem {
                         b.iter(|| {
                             let (_, _) = <$struct as MultiRecipient<$struct>>::multi_encaps(
                                 black_box(&pk),
-                                black_box(&kids[..]),
+                                black_box(&kids),
                                 &mut rng
                             );
                         })

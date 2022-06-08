@@ -146,8 +146,8 @@ impl IBKEM for CGWFO {
     }
 }
 
-#[cfg(feature = "mr")]
-impl crate::kem::mr::MultiRecipient<CGWFO> for CGWFO {}
+#[cfg(feature = "mkem")]
+impl crate::kem::mkem::MultiRecipient<CGWFO> for CGWFO {}
 
 #[cfg(test)]
 mod tests {
@@ -156,6 +156,6 @@ mod tests {
 
     test_kem!(CGWFO);
 
-    #[cfg(feature = "mr")]
+    #[cfg(feature = "mkem")]
     test_multi_kem!(CGWFO);
 }
