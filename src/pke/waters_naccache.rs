@@ -94,6 +94,7 @@ fn entangle(pk: &PublicKey, v: &Identity) -> G2Projective {
 }
 
 /// The Waters-Naccache identity-based encryption scheme.
+#[derive(Debug)]
 pub struct WatersNaccache;
 
 impl IBE for WatersNaccache {

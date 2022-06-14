@@ -24,7 +24,7 @@
 //! let usk2 = CGWKV::extract_usk(None, &sk, &derived[1], &mut rng);
 //!
 //! // Encapsulate a single session key for two recipients.
-//! let (cts_iter, k) = CGWKV::multi_encaps(&pk, derived, &mut rng);
+//! let (cts_iter, k) = CGWKV::multi_encaps(&pk, &derived, &mut rng);
 //! let cts: Vec<MultiRecipientCiphertext<CGWKV>> = cts_iter.collect();
 //!
 //! let k1 = CGWKV::multi_decaps(Some(&pk), &usk1, &cts[0]).unwrap();
@@ -51,13 +51,14 @@ use crate::kem::kiltz_vahlis_one::KV1;
 /// A multi-recipient ciphertext.
 ///
 /// This is an extension of a scheme's ciphertext.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct MultiRecipientCiphertext<K: IBKEM> {
     ct_i: K::Ct,
     ss_i: SharedSecret,
 }
 
 /// Iterator type for multi-recipient ciphertext.
+#[derive(Debug)]
 pub struct Ciphertexts<'a, K: IBKEM, R> {
     ss: SharedSecret,
     pk: &'a K::Pk,

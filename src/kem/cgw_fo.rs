@@ -27,7 +27,9 @@ pub use crate::pke::cgw::{PublicKey, SecretKey, CT_BYTES, MSG_BYTES, PK_BYTES, S
 /// The USK includes a random message and the identity (needed for re-encryption).
 pub const USK_BYTES: usize = CPA_USK_BYTES + ID_BYTES;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+/// User secret key. Can be used to decaps the corresponding ciphertext.
+/// Also known as USK_{id}.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UserSecretKey {
     usk: crate::pke::cgw::UserSecretKey,
     id: Identity,
@@ -59,7 +61,7 @@ impl Compress for UserSecretKey {
 
 /// The CCA2 secure KEM that results by applying the implicit rejection
 /// variant of the Fujisaki-Okamoto transform to the Chen-Gay-Wee IBE scheme.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct CGWFO;
 
 impl IBKEM for CGWFO {

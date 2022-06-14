@@ -14,8 +14,7 @@ macro_rules! test_kem {
 
         fn perform_default() -> DefaultSubResults {
             let mut rng = rand::thread_rng();
-            let id = ID1.as_bytes();
-            let kid = <$name as IBKEM>::Id::derive(id);
+            let kid = <$name as IBKEM>::Id::derive_str(ID1);
             let (pk, sk) = $name::setup(&mut rng);
             let usk = $name::extract_usk(Some(&pk), &sk, &kid, &mut rng);
             let (c, k) = $name::encaps(&pk, &kid, &mut rng);
@@ -70,10 +69,9 @@ macro_rules! test_multi_kem {
             let id1 = "email:w.geraedts@sarif.nl";
             let id2 = "email:l.botros@cs.ru.nl";
 
-            let ids = [id1.as_bytes(), id2.as_bytes()];
             let kid = [
-                <$name as IBKEM>::Id::derive(ids[0]),
-                <$name as IBKEM>::Id::derive(ids[1]),
+                <$name as IBKEM>::Id::derive_str(id1),
+                <$name as IBKEM>::Id::derive_str(id2),
             ];
 
             let (pk, sk) = $name::setup(&mut rng);

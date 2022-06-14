@@ -43,6 +43,8 @@
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
+#![deny(unsafe_code)]
 
 #[cfg(test)]
 extern crate std;
@@ -66,7 +68,10 @@ pub mod pke;
 /// Secret artifacts such as the master secret key, user secret key should implement this in
 /// constant-time.
 pub trait Compress: Copy {
+    /// The size of the compressed output.
     const OUTPUT_SIZE: usize;
+
+    /// The type of the output.
     type Output: Sized + Copy + Clone + AsRef<[u8]>;
 
     /// Compresses this artifact to a short serialized byte representation.
