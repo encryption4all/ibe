@@ -54,16 +54,6 @@ impl BitXorAssign for SharedSecret {
     }
 }
 
-impl SharedSecret {
-    /// Sample random shared secret.
-    fn random<R: Rng + CryptoRng>(r: &mut R) -> Self {
-        let mut ss_bytes = [0u8; SS_BYTES];
-        r.fill_bytes(&mut ss_bytes);
-
-        SharedSecret(ss_bytes)
-    }
-}
-
 /// Opaque error in case a KEM protocol fails.
 #[derive(Debug)]
 pub struct Error;

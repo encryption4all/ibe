@@ -48,6 +48,16 @@ use crate::kem::cgw_kv::CGWKV;
 #[cfg(feature = "kv1")]
 use crate::kem::kiltz_vahlis_one::KV1;
 
+impl SharedSecret {
+    /// Sample random shared secret.
+    fn random<R: Rng + CryptoRng>(r: &mut R) -> Self {
+        let mut ss_bytes = [0u8; SS_BYTES];
+        r.fill_bytes(&mut ss_bytes);
+
+        SharedSecret(ss_bytes)
+    }
+}
+
 /// A multi-recipient ciphertext.
 ///
 /// This is an extension of a scheme's ciphertext.
