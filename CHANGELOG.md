@@ -1,5 +1,14 @@
 # CHANGELOG.md
 
+## 0.2.2
+
+### Added
+- All publicly exposed structs are `Debug` (`#[deny(missing_debug_implementations)]`).
+### Changed
+
+-   `mr` module rename to `mkem`.
+-   Multirecipient encapsulation now returns an iterator.
+
 ## 0.2.1
 
 ### Removed
