@@ -67,7 +67,7 @@ pub struct MultiRecipientCiphertext<K: IBKEM> {
     ss_i: SharedSecret,
 }
 
-/// Iterator type for multi-recipient ciphertext.
+/// Iterator for multi-recipient ciphertexts.
 #[derive(Debug)]
 pub struct Ciphertexts<'a, K: IBKEM, R> {
     ss: SharedSecret,
@@ -96,14 +96,11 @@ where
 /// Trait that captures multi-recipient encapsulation/decapsulation.
 pub trait MultiRecipient<K: IBKEM> {
     /// Encapsulates a single shared secret for a multiple of counterparties.
-    fn multi_encaps<'a, R>(
+    fn multi_encaps<'a, R: Rng + CryptoRng>(
         pk: &'a <K as IBKEM>::Pk,
         ids: impl IntoIterator<IntoIter = Iter<'a, K::Id>>,
         rng: &'a mut R,
-    ) -> (Ciphertexts<'a, K, R>, SharedSecret)
-    where
-        R: Rng + CryptoRng,
-    {
+    ) -> (Ciphertexts<'a, K, R>, SharedSecret) {
         let ss = SharedSecret::random(rng);
 
         let cts = Ciphertexts {

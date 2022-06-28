@@ -8,7 +8,7 @@
 use core::convert::TryInto;
 
 use crate::util::*;
-use crate::{pke::IBE, Compress};
+use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
 use rand::{CryptoRng, Rng};

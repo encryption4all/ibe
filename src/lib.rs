@@ -1,5 +1,5 @@
 //! Collection of Identity Based Encryption (IBE) schemes on the [BLS12-381 pairing-friendly elliptic curve](https://github.com/zkcrypto/bls12_381) in Rust.
-//! This crate contains both identity-based encryption schemes (IBEs, see [the pke module](`crate::pke`)) and identity-based key encapsulation mechanisms (IBKEMs, see [the kem module](`crate::kem`)).
+//! This crate contains both identity-based encryption schemes (IBEs, see [the ibe module](`crate::ibe`)) and identity-based key encapsulation mechanisms (IBKEMs, see [the kem module](`crate::kem`)).
 //! References to papers appear in the respective source files.
 //!
 //! This crate contains the following schemes (in chronological order of publication):
@@ -42,9 +42,9 @@
 //! ```
 
 #![no_std]
+#![deny(missing_debug_implementations, rust_2018_idioms, missing_docs)]
+#![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(missing_debug_implementations, rust_2018_idioms, missing_docs)]
-#![deny(unsafe_code)]
 
 #[cfg(test)]
 extern crate std;
@@ -60,8 +60,8 @@ mod test_macros;
 #[allow(unused)]
 mod util;
 
+pub mod ibe;
 pub mod kem;
-pub mod pke;
 
 /// Artifacts of the system that can be compressed should implement this trait.
 ///

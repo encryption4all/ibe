@@ -5,7 +5,7 @@
 //! All structs' byte serialization use compression.
 
 use crate::util::*;
-use crate::{pke::IBE, Compress};
+use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use core::convert::TryInto;
 use irmaseal_curve::{

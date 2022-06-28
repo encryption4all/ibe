@@ -9,9 +9,9 @@
 //!
 //! A drawback of a Fujisaki-Okamoto transform is that we now need the public key to decapsulate.
 
+use crate::ibe::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};
+use crate::ibe::IBE;
 use crate::kem::{Error, SharedSecret, IBKEM};
-use crate::pke::cgw::{CipherText, Msg, CGW, USK_BYTES as CPA_USK_BYTES};
-use crate::pke::IBE;
 use crate::util::*;
 use crate::Compress;
 use arrayref::{array_refs, mut_array_refs};
@@ -20,7 +20,7 @@ use rand::{CryptoRng, Rng};
 use subtle::{ConstantTimeEq, CtOption};
 
 /// These struct are identical for the CCA KEM.
-pub use crate::pke::cgw::{PublicKey, SecretKey, CT_BYTES, MSG_BYTES, PK_BYTES, SK_BYTES};
+pub use crate::ibe::cgw::{PublicKey, SecretKey, CT_BYTES, MSG_BYTES, PK_BYTES, SK_BYTES};
 
 /// Size of the compressed user secret key in bytes.
 ///
@@ -31,7 +31,7 @@ pub const USK_BYTES: usize = CPA_USK_BYTES + ID_BYTES;
 /// Also known as USK_{id}.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UserSecretKey {
-    usk: crate::pke::cgw::UserSecretKey,
+    usk: crate::ibe::cgw::UserSecretKey,
     id: Identity,
 }
 
@@ -52,7 +52,7 @@ impl Compress for UserSecretKey {
     fn from_bytes(bytes: &[u8; USK_BYTES]) -> CtOption<Self> {
         let (usk, rid) = array_refs![&bytes, CPA_USK_BYTES, ID_BYTES];
 
-        let usk = crate::pke::cgw::UserSecretKey::from_bytes(usk);
+        let usk = crate::ibe::cgw::UserSecretKey::from_bytes(usk);
         let id = Identity(*rid);
 
         usk.map(|usk| UserSecretKey { usk, id })

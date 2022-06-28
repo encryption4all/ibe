@@ -3,10 +3,13 @@
 ## 0.2.2
 
 ### Added
-- All publicly exposed structs are `Debug` (`#[deny(missing_debug_implementations)]`).
+
+-   All publicly exposed structs are `Debug` (`#[deny(missing_debug_implementations)]`).
+
 ### Changed
 
--   `mr` module rename to `mkem`.
+-   renamed `mr` module to `mkem`.
+-   renamed `pke` module to `ibe`.
 -   Multirecipient encapsulation now returns an iterator.
 
 ## 0.2.1

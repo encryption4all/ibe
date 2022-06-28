@@ -105,8 +105,8 @@ macro_rules! bench_ibe {
         paste! {
             fn [<bench_ibe_ $scheme>](criterion: &mut Criterion) {
                 use group::Group;
-                use ibe::pke::$scheme::*;
-                use ibe::{pke::IBE, Derive};
+                use ibe::ibe::$scheme::*;
+                use ibe::{ibe::IBE, Derive};
                 use rand::RngCore;
 
                 let mut rng = rand::thread_rng();
@@ -199,7 +199,7 @@ criterion_group!(
 );
 
 criterion_group!(
-    name = pke_benches;
+    name = ibe_benches;
     config = Criterion::default().warm_up_time(Duration::new(0, 500));
     targets =
     bench_ibe_waters,
@@ -208,4 +208,4 @@ criterion_group!(
     bench_ibe_cgw,
 );
 
-criterion_main!(kem_benches, pke_benches);
+criterion_main!(kem_benches, ibe_benches);

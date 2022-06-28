@@ -3,7 +3,7 @@
 //! * Published in: EUROCRYPT, 2005
 
 use crate::util::*;
-use crate::{pke::IBE, Compress, Derive};
+use crate::{ibe::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
