@@ -49,9 +49,6 @@
 #[cfg(test)]
 extern crate std;
 
-#[cfg(feature = "mr")]
-extern crate alloc;
-
 #[cfg(test)]
 #[macro_use]
 #[allow(unused)]
