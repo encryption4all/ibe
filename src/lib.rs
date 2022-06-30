@@ -46,6 +46,8 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use core::fmt::Debug;
+
 #[cfg(test)]
 extern crate std;
 
@@ -64,12 +66,12 @@ pub mod kem;
 ///
 /// Secret artifacts such as the master secret key, user secret key should implement this in
 /// constant-time.
-pub trait Compress: Copy {
+pub trait Compress: Debug + Sized + Clone {
     /// The size of the compressed output.
     const OUTPUT_SIZE: usize;
 
     /// The type of the output.
-    type Output: Sized + Copy + Clone + AsRef<[u8]>;
+    type Output: Sized + AsRef<[u8]>;
 
     /// Compresses this artifact to a short serialized byte representation.
     fn to_bytes(&self) -> Self::Output;
