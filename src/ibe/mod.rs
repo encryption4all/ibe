@@ -30,9 +30,9 @@ pub mod waters;
 #[cfg_attr(docsrs, doc(cfg(feature = "waters_naccache")))]
 pub mod waters_naccache;
 
-use crate::{Compress, Derive};
+use crate::Compress;
 use group::Group;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 
 /// Identity-based encryption scheme (IBE).
 pub trait IBE {
@@ -52,10 +52,16 @@ pub trait IBE {
     type Msg: Compress + Group;
 
     /// Internal identity type (Id).
-    type Id: Copy + Derive;
+    type Id: Copy;
 
     /// Randomness required to encrypt a message.
     type RngBytes: Sized;
+
+    /// Scheme-specific inputs to the extraction (other than the identity).
+    type ExtractParams<'a>;
+
+    /// Scheme-specific inputs to the decryption (other than the ciphertext).
+    type DecryptParams<'a>;
 
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;
@@ -73,14 +79,13 @@ pub trait IBE {
     const MSG_BYTES: usize;
 
     /// Creates an MSK, MPK pair.
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
 
     /// Extract a user secret key for an identity using the MSK.
     ///
     /// Optionally requires the system's public key.
-    fn extract_usk<R: Rng + CryptoRng>(
-        pk: Option<&Self::Pk>,
-        s: &Self::Sk,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> Self::Usk;
@@ -90,5 +95,7 @@ pub trait IBE {
         -> Self::Ct;
 
     /// Decrypt a ciphertext using a user secret key to retrieve a message.
-    fn decrypt(usk: &Self::Usk, ct: &Self::Ct) -> Self::Msg;
+    ///
+    /// Optionally requires the system's public key.
+    fn decrypt(dp: Self::DecryptParams<'_>, ct: &Self::Ct) -> Self::Msg;
 }

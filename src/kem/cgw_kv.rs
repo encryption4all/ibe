@@ -1,9 +1,9 @@
 //! IND-ID-CCA2 secure IBKEM Chen, Gay and Wee.
 //!  * From: "[Improved Dual System ABE in Prime-Order Groups via Predicate Encodings](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!
-//! CCA security due to a generalized approach from Kiltz & Vahlis.
-//!  * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
-//!  * Published in: CT-RSA, 2008
+//! CCA security due to a generalized approach.
+//!  * From: "[Efficient and Generic Transformations for Chosen-Ciphertext Secure Predicate Encryption](https://eprint.iacr.org/2022/1436.pdf)"
+//!  * Pp: 41-43, definition 23.
 
 extern crate alloc;
 use alloc::vec::Vec;
@@ -17,7 +17,7 @@ use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 /// Size of the compressed master public key in bytes.
@@ -87,13 +87,16 @@ impl IBKEM for CGWKV {
     type Ct = CipherText;
     type Id = Identity;
 
+    type ExtractParams<'a> = &'a Self::Sk;
+    type DecapsParams<'a> = &'a Self::Usk;
+
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
     const CT_BYTES: usize = CT_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g1 = G1Affine::generator();
         let g2 = G2Affine::generator();
 
@@ -164,9 +167,8 @@ impl IBKEM for CGWKV {
     }
 
     /// Extract a user secret key for a given identity.
-    fn extract_usk<R: Rng + CryptoRng>(
-        _pk: Option<&PublicKey>,
-        sk: &SecretKey,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        sk: Self::ExtractParams<'_>,
         v: &Identity,
         rng: &mut R,
     ) -> UserSecretKey {
@@ -206,7 +208,7 @@ impl IBKEM for CGWKV {
         }
     }
 
-    fn encaps<R: Rng + CryptoRng>(
+    fn encaps<R: RngCore + CryptoRng>(
         pk: &PublicKey,
         id: &Identity,
         rng: &mut R,
@@ -238,11 +240,7 @@ impl IBKEM for CGWKV {
     /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
-    fn decaps(
-        _pk: Option<&PublicKey>,
-        usk: &UserSecretKey,
-        ct: &CipherText,
-    ) -> Result<SharedSecret, Error> {
+    fn decaps(usk: Self::DecapsParams<'_>, ct: &Self::Ct) -> Result<SharedSecret, Error> {
         let yprime = rpc(&ct.k, &[ct.c0[0], ct.c0[1]]);
         let tmp1: G2Affine = (usk.d1[0] + (usk.d2[0] * yprime)).into();
         let tmp2: G2Affine = (usk.d1[1] + (usk.d2[1] * yprime)).into();
@@ -510,10 +508,7 @@ impl crate::kem::mkem::MultiRecipient for CGWKV {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Derive;
 
-    test_kem!(CGWKV);
-
-    #[cfg(feature = "mkem")]
-    test_multi_kem!(CGWKV);
+    test_kem!(CGWKV, { pk, sk, usk }, { &sk, &usk });
+    test_multi_kem!(CGWKV, { pk, sk, usks, i }, { &sk, &usks[i] });
 }

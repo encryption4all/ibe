@@ -15,7 +15,7 @@ version = "0.2.2"
 [dependencies]
 arrayref = "0.3.6"
 group = "0.12.1"
-rand = { version = "0.8.4", default-features = false }
+rand_core = { version = "^0.6", default-features = false }
 irmaseal-curve = { version = "0.1.4", features = [
   "alloc",
   "group",

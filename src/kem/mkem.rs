@@ -9,26 +9,27 @@
 //! use ibe::kem::IBKEM;
 //! use ibe::kem::mkem::{MultiRecipient, MultiRecipientCiphertext};
 //! use ibe::kem::cgw_kv::CGWKV;
-//! use ibe::Derive;
 //!
 //! let mut rng = rand::thread_rng();
 //!
-//! let ids = ["email:w.geraedts@sarif.nl", "email:l.botros@cs.ru.nl"];
-//! let derived: Vec<<CGWKV as IBKEM>::Id> = ids.iter().map(|id| <CGWKV as IBKEM>::Id::derive_str(id)).collect();
+//! let ids = [
+//!     <CGWKV as IBKEM>::Id::from("email:w.geraedts@sarif.nl"),
+//!     <CGWKV as IBKEM>::Id::from("email:l.botros@cs.ru.nl"),
+//! ];
 //!
 //! // Create a master key pair.
 //! let (pk, sk) = CGWKV::setup(&mut rng);
 //!
 //! // Generate USKs for both identities.
-//! let usk1 = CGWKV::extract_usk(None, &sk, &derived[0], &mut rng);
-//! let usk2 = CGWKV::extract_usk(None, &sk, &derived[1], &mut rng);
+//! let usk1 = CGWKV::extract_usk(&sk, &ids[0], &mut rng);
+//! let usk2 = CGWKV::extract_usk(&sk, &ids[1], &mut rng);
 //!
 //! // Encapsulate a single session key for two recipients.
-//! let (cts_iter, k) = CGWKV::multi_encaps(&pk, &derived, &mut rng);
+//! let (cts_iter, k) = CGWKV::multi_encaps(&pk, &ids, &mut rng);
 //! let cts: Vec<MultiRecipientCiphertext<CGWKV>> = cts_iter.collect();
 //!
-//! let k1 = CGWKV::multi_decaps(Some(&pk), &usk1, &cts[0]).unwrap();
-//! let k2 = CGWKV::multi_decaps(Some(&pk), &usk2, &cts[1]).unwrap();
+//! let k1 = CGWKV::multi_decaps(&usk1, &cts[0]).unwrap();
+//! let k2 = CGWKV::multi_decaps(&usk2, &cts[1]).unwrap();
 //!
 //! assert_eq!(k, k1);
 //! assert_eq!(k, k2);
@@ -36,7 +37,7 @@
 
 use crate::kem::{Compress, Error, SharedSecret, IBKEM, SS_BYTES};
 use core::slice::Iter;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::CtOption;
 
 #[cfg(feature = "cgwfo")]
@@ -50,7 +51,7 @@ use crate::kem::kiltz_vahlis_one::KV1;
 
 impl SharedSecret {
     /// Sample random shared secret.
-    fn random<R: Rng + CryptoRng>(r: &mut R) -> Self {
+    fn random<R: RngCore + CryptoRng>(r: &mut R) -> Self {
         let mut ss_bytes = [0u8; SS_BYTES];
         r.fill_bytes(&mut ss_bytes);
 
@@ -79,7 +80,7 @@ pub struct Ciphertexts<'a, K: IBKEM, R> {
 impl<'a, K, R> Iterator for Ciphertexts<'a, K, R>
 where
     K: IBKEM,
-    R: Rng + CryptoRng,
+    R: RngCore + CryptoRng,
 {
     type Item = MultiRecipientCiphertext<K>;
 
@@ -96,7 +97,7 @@ where
 /// Trait that captures multi-recipient encapsulation/decapsulation.
 pub trait MultiRecipient: IBKEM {
     /// Encapsulates a single shared secret for a multiple of counterparties.
-    fn multi_encaps<'a, R: Rng + CryptoRng>(
+    fn multi_encaps<'a, R: RngCore + CryptoRng>(
         pk: &'a <Self as IBKEM>::Pk,
         ids: impl IntoIterator<IntoIter = Iter<'a, Self::Id>>,
         rng: &'a mut R,
@@ -120,11 +121,10 @@ pub trait MultiRecipient: IBKEM {
     /// In some cases this function requires the master public key, depending on
     /// the underlying IBKEM scheme used (e.g., CGWFO).
     fn multi_decaps(
-        mpk: Option<&Self::Pk>,
-        usk: &Self::Usk,
+        dp: Self::DecapsParams<'_>,
         ct: &MultiRecipientCiphertext<Self>,
     ) -> Result<SharedSecret, Error> {
-        let mut ss = <Self as IBKEM>::decaps(mpk, usk, &ct.ct_i)?;
+        let mut ss = <Self as IBKEM>::decaps(dp, &ct.ct_i)?;
         ss ^= ct.ss_i;
 
         Ok(ss)

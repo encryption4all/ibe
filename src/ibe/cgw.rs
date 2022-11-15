@@ -16,7 +16,7 @@ use irmaseal_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 /// Size of the compressed message in bytes.
@@ -89,6 +89,9 @@ impl IBE for CGW {
     type Id = Identity;
     type RngBytes = [u8; 64];
 
+    type ExtractParams<'a> = &'a Self::Sk;
+    type DecryptParams<'a> = &'a Self::Usk;
+
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
@@ -96,7 +99,7 @@ impl IBE for CGW {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g1 = G1Affine::generator();
         let g2 = G2Affine::generator();
 
@@ -149,9 +152,8 @@ impl IBE for CGW {
     }
 
     /// Extract a user secret key for a given identity.
-    fn extract_usk<R: Rng + CryptoRng>(
-        _opk: Option<&Self::Pk>,
-        sk: &SecretKey,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        sk: Self::ExtractParams<'_>,
         v: &Identity,
         rng: &mut R,
     ) -> UserSecretKey {
@@ -213,7 +215,7 @@ impl IBE for CGW {
     }
 
     /// Derive the same message from the CipherText using a UserSecretKey.
-    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Msg {
+    fn decrypt(usk: Self::DecryptParams<'_>, ct: &CipherText) -> Msg {
         ct.cprime
             + multi_miller_loop(&[
                 (&ct.c0[0], &G2Prepared::from(usk.d1[0])),
@@ -469,5 +471,7 @@ impl ConditionallySelectable for UserSecretKey {
 
 #[cfg(test)]
 mod tests {
-    test_ibe!(CGW);
+    use super::*;
+
+    test_ibe!(CGW, { pk, sk, usk }, { &sk, &usk });
 }

@@ -16,7 +16,7 @@ use crate::util::*;
 use crate::Compress;
 use arrayref::{array_refs, mut_array_refs};
 use group::Group;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{ConstantTimeEq, CtOption};
 
 /// These struct are identical for the CCA KEM.
@@ -73,27 +73,29 @@ impl IBKEM for CGWFO {
     type Ct = CipherText;
     type Id = Identity;
 
+    type ExtractParams<'a> = &'a Self::Sk;
+    type DecapsParams<'a> = (&'a Self::Pk, &'a Self::Usk);
+
     const PK_BYTES: usize = PK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const CT_BYTES: usize = CT_BYTES;
 
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         CGW::setup(rng)
     }
 
-    fn extract_usk<R: Rng + CryptoRng>(
-        _pk: Option<&PublicKey>,
-        sk: &SecretKey,
-        id: &Identity,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
+        id: &Self::Id,
         rng: &mut R,
     ) -> UserSecretKey {
-        let usk = CGW::extract_usk(None, sk, id, rng);
+        let usk = CGW::extract_usk(ep, id, rng);
 
         UserSecretKey { usk, id: *id }
     }
 
-    fn encaps<R: Rng + CryptoRng>(
+    fn encaps<R: RngCore + CryptoRng>(
         pk: &PublicKey,
         id: &Identity,
         rng: &mut R,
@@ -121,13 +123,8 @@ impl IBKEM for CGWFO {
     /// # Errors
     ///
     /// This function returns an [`Error`] when an illegitimate ciphertext is encountered (explicit rejection).
-    fn decaps(
-        opk: Option<&PublicKey>,
-        usk: &UserSecretKey,
-        c: &CipherText,
-    ) -> Result<SharedSecret, Error> {
-        let pk = opk.unwrap();
-
+    fn decaps(dp: Self::DecapsParams<'_>, c: &CipherText) -> Result<SharedSecret, Error> {
+        let (pk, usk) = dp;
         let m = CGW::decrypt(&usk.usk, c);
 
         let mut pre_coins = [0u8; MSG_BYTES + ID_BYTES];
@@ -154,10 +151,7 @@ impl crate::kem::mkem::MultiRecipient for CGWFO {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Derive;
 
-    test_kem!(CGWFO);
-
-    #[cfg(feature = "mkem")]
-    test_multi_kem!(CGWFO);
+    test_kem!(CGWFO, { pk, sk, usk }, { &sk, (&pk, &usk) });
+    test_multi_kem!(CGWFO, { pk, sk, usks, i }, { &sk, (&pk, &usks[i]) });
 }

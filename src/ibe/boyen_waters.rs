@@ -11,7 +11,7 @@ use crate::util::*;
 use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::CtOption;
 
 #[allow(unused_imports)]
@@ -95,6 +95,10 @@ impl IBE for BoyenWaters {
     type Ct = CipherText;
     type Msg = Msg;
     type Id = Identity;
+
+    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
+    type DecryptParams<'a> = &'a Self::Usk;
+
     type RngBytes = [u8; 192];
 
     const PK_BYTES: usize = PK_BYTES;
@@ -104,7 +108,7 @@ impl IBE for BoyenWaters {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g = G1Affine::generator();
         let h = G2Affine::generator();
 
@@ -151,13 +155,12 @@ impl IBE for BoyenWaters {
     }
 
     /// Extract an user secret key for a given identity.
-    fn extract_usk<R: Rng + CryptoRng>(
-        opk: Option<&PublicKey>,
-        sk: &SecretKey,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
         v: &Identity,
         rng: &mut R,
     ) -> UserSecretKey {
-        let pk = opk.unwrap();
+        let (pk, sk) = ep;
 
         let h = G2Affine::generator();
 
@@ -200,7 +203,7 @@ impl IBE for BoyenWaters {
     }
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
-    fn decrypt(usk: &UserSecretKey, ct: &CipherText) -> Msg {
+    fn decrypt(usk: Self::DecryptParams<'_>, ct: &CipherText) -> Msg {
         ct.cprime
             + multi_miller_loop(&[
                 (&ct.c[0], &G2Prepared::from(usk.d[0])),
@@ -437,5 +440,7 @@ impl Compress for CipherText {
 
 #[cfg(test)]
 mod tests {
-    test_ibe!(BoyenWaters);
+    use super::*;
+
+    test_ibe!(BoyenWaters, { pk, sk, usk }, { (&pk, &sk), &usk });
 }

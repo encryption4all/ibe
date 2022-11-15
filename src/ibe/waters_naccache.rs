@@ -4,10 +4,10 @@
 //!  * Published in: IET Information Security, 2007
 
 use crate::util::*;
-use crate::{ibe::IBE, Compress, Derive};
+use crate::{ibe::IBE, Compress};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 #[allow(unused_imports)]
@@ -106,6 +106,9 @@ impl IBE for WatersNaccache {
     type Id = Identity;
     type RngBytes = [u8; 64];
 
+    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
+    type DecryptParams<'a> = &'a Self::Usk;
+
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
@@ -113,7 +116,7 @@ impl IBE for WatersNaccache {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g: G1Affine = rand_g1(rng).into();
 
         let alpha = rand_scalar(rng);
@@ -143,13 +146,12 @@ impl IBE for WatersNaccache {
     }
 
     /// Extract an user secret key for a given identity.
-    fn extract_usk<R: Rng + CryptoRng>(
-        opk: Option<&PublicKey>,
-        sk: &SecretKey,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
         v: &Identity,
         rng: &mut R,
     ) -> UserSecretKey {
-        let pk = opk.unwrap();
+        let (pk, sk) = ep;
 
         let r = rand_scalar(rng);
         let ucoll = entangle(pk, v);
@@ -172,15 +174,12 @@ impl IBE for WatersNaccache {
     }
 
     /// Decrypt ciphertext to a message using a user secret key.
-    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
-        let m = c.c1
-            + multi_miller_loop(&[
-                (&usk.d2, &G2Prepared::from(c.c3)),
-                (&-c.c2, &G2Prepared::from(usk.d1)),
-            ])
-            .final_exponentiation();
-
-        m
+    fn decrypt(usk: Self::DecryptParams<'_>, c: &CipherText) -> Msg {
+        c.c1 + multi_miller_loop(&[
+            (&usk.d2, &G2Prepared::from(c.c3)),
+            (&-c.c2, &G2Prepared::from(usk.d1)),
+        ])
+        .final_exponentiation()
     }
 }
 
@@ -318,11 +317,12 @@ impl Compress for UserSecretKey {
     }
 }
 
-impl Derive for Identity {
-    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
-    /// Uses sha3-512 internally.
-    fn derive(b: &[u8]) -> Identity {
-        let hash = sha3_512(b);
+impl<B> From<B> for Identity
+where
+    B: AsRef<[u8]>,
+{
+    fn from(b: B) -> Self {
+        let hash = sha3_512(b.as_ref());
 
         let mut result = [Scalar::zero(); CHUNKS];
         for (i, r) in result.iter_mut().enumerate().take(CHUNKS) {
@@ -336,15 +336,11 @@ impl Derive for Identity {
 
         Identity(result)
     }
-
-    /// Hash a string slice to a set of Identity parameters.
-    /// Directly converts characters to UTF-8 byte representation.
-    fn derive_str(s: &str) -> Identity {
-        Self::derive(s.as_bytes())
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    test_ibe!(WatersNaccache);
+    use super::*;
+
+    test_ibe!(WatersNaccache, { pk, sk, usk }, { (&pk, &sk), &usk });
 }

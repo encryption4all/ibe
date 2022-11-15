@@ -7,7 +7,7 @@ use crate::util::*;
 use crate::Compress;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 const K: usize = 256;
@@ -86,13 +86,16 @@ impl IBKEM for KV1 {
     type Ct = CipherText;
     type Id = Identity;
 
+    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
+    type DecapsParams<'a> = &'a Self::Usk;
+
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
     const CT_BYTES: usize = CT_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g: G2Affine = rand_g2(rng).into();
 
         let alpha: G1Affine = rand_g1(rng).into();
@@ -115,13 +118,12 @@ impl IBKEM for KV1 {
     ///
     /// This scheme **does** require the master public key to perform this operation.
     /// If no master public key is given, this function panics.
-    fn extract_usk<R: Rng + CryptoRng>(
-        opk: Option<&PublicKey>,
-        sk: &SecretKey,
-        v: &Identity,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
+        v: &Self::Id,
         rng: &mut R,
-    ) -> UserSecretKey {
-        let pk = opk.unwrap();
+    ) -> Self::Usk {
+        let (pk, sk) = ep;
         let s = rand_scalar(rng);
 
         let d1 = (sk.alpha + (hash_to_curve(pk, v) * s)).into();
@@ -131,7 +133,7 @@ impl IBKEM for KV1 {
         UserSecretKey { d1, d2, d3 }
     }
 
-    fn encaps<R: Rng + CryptoRng>(
+    fn encaps<R: RngCore + CryptoRng>(
         pk: &Self::Pk,
         id: &Self::Id,
         rng: &mut R,
@@ -148,19 +150,10 @@ impl IBKEM for KV1 {
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
     ///
-    /// # Panics
-    ///
-    /// This scheme does **not** require the systems master public key to perform this operation.
-    /// Therefore, this operation never panics.
-    ///
     /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
-    fn decaps(
-        _opk: Option<&PublicKey>,
-        usk: &UserSecretKey,
-        c: &CipherText,
-    ) -> Result<SharedSecret, Error> {
+    fn decaps(usk: Self::DecapsParams<'_>, c: &Self::Ct) -> Result<SharedSecret, Error> {
         let t = hash_g2_to_scalar(c.c1);
         let x: G1Affine = (usk.d1 + (usk.d3 * t)).into();
 
@@ -175,7 +168,7 @@ impl IBKEM for KV1 {
 }
 
 impl HashParameters {
-    pub fn to_bytes(&self) -> [u8; HASH_PARAMETER_SIZE] {
+    pub fn to_bytes(self) -> [u8; HASH_PARAMETER_SIZE] {
         let mut res = [0u8; HASH_PARAMETER_SIZE];
         for i in 0..N {
             *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
@@ -202,7 +195,7 @@ impl ConditionallySelectable for HashParameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); N];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         HashParameters(res)
     }
@@ -345,10 +338,7 @@ impl crate::kem::mkem::MultiRecipient for KV1 {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Derive;
 
-    test_kem!(KV1);
-
-    #[cfg(feature = "mkem")]
-    test_multi_kem!(KV1);
+    test_kem!(KV1, { pk, sk, usk }, { (&pk, &sk), &usk });
+    test_multi_kem!(KV1, { pk, sk, usks, i }, { (&pk, &sk), &usks[i] });
 }
