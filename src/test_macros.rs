@@ -110,7 +110,9 @@ macro_rules! test_ibe {
         }
 
         fn perform_default() -> DefaultSubResults {
+            use group::Group;
             use rand::RngCore;
+
             let mut rng = rand::thread_rng();
 
             let kid = <$name as IBE>::Id::derive(ID);
