@@ -340,7 +340,7 @@ impl ConditionallySelectable for CipherText {
 }
 
 #[cfg(feature = "mkem")]
-impl crate::kem::mkem::MultiRecipient<KV1> for KV1 {}
+impl crate::kem::mkem::MultiRecipient for KV1 {}
 
 #[cfg(test)]
 mod tests {

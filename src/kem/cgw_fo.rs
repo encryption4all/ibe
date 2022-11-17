@@ -149,7 +149,7 @@ impl IBKEM for CGWFO {
 }
 
 #[cfg(feature = "mkem")]
-impl crate::kem::mkem::MultiRecipient<CGWFO> for CGWFO {}
+impl crate::kem::mkem::MultiRecipient for CGWFO {}
 
 #[cfg(test)]
 mod tests {

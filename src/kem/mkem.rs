@@ -94,13 +94,13 @@ where
 }
 
 /// Trait that captures multi-recipient encapsulation/decapsulation.
-pub trait MultiRecipient<K: IBKEM> {
+pub trait MultiRecipient: IBKEM {
     /// Encapsulates a single shared secret for a multiple of counterparties.
     fn multi_encaps<'a, R: Rng + CryptoRng>(
-        pk: &'a <K as IBKEM>::Pk,
-        ids: impl IntoIterator<IntoIter = Iter<'a, K::Id>>,
+        pk: &'a <Self as IBKEM>::Pk,
+        ids: impl IntoIterator<IntoIter = Iter<'a, Self::Id>>,
         rng: &'a mut R,
-    ) -> (Ciphertexts<'a, K, R>, SharedSecret) {
+    ) -> (Ciphertexts<'a, Self, R>, SharedSecret) {
         let ss = SharedSecret::random(rng);
 
         let cts = Ciphertexts {
@@ -120,11 +120,11 @@ pub trait MultiRecipient<K: IBKEM> {
     /// In some cases this function requires the master public key, depending on
     /// the underlying IBKEM scheme used (e.g., CGWFO).
     fn multi_decaps(
-        mpk: Option<&K::Pk>,
-        usk: &K::Usk,
-        ct: &MultiRecipientCiphertext<K>,
+        mpk: Option<&Self::Pk>,
+        usk: &Self::Usk,
+        ct: &MultiRecipientCiphertext<Self>,
     ) -> Result<SharedSecret, Error> {
-        let mut ss = <K as IBKEM>::decaps(mpk, usk, &ct.ct_i)?;
+        let mut ss = <Self as IBKEM>::decaps(mpk, usk, &ct.ct_i)?;
         ss ^= ct.ss_i;
 
         Ok(ss)
