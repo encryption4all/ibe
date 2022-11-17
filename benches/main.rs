@@ -87,7 +87,7 @@ macro_rules! bench_multi_kem {
                     move |b| {
                         let mut rng = rand::thread_rng();
                         b.iter(|| {
-                            let (iter, _) = <$struct as MultiRecipient<$struct>>::multi_encaps(
+                            let (iter, _) = $struct::multi_encaps(
                                 black_box(&pk),
                                 black_box(&kids),
                                 &mut rng
