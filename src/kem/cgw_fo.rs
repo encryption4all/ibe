@@ -73,8 +73,8 @@ impl IBKEM for CGWFO {
     type Ct = CipherText;
     type Id = Identity;
 
-    type ExtractParams<'a> = &'a Self::Sk;
-    type DecapsParams<'a> = (&'a Self::Pk, &'a Self::Usk);
+    type ExtractParams<'pk, 'sk> = &'sk Self::Sk;
+    type DecapsParams<'pk, 'usk> = (&'pk Self::Pk, &'usk Self::Usk);
 
     const PK_BYTES: usize = PK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
@@ -86,7 +86,7 @@ impl IBKEM for CGWFO {
     }
 
     fn extract_usk<R: RngCore + CryptoRng>(
-        ep: Self::ExtractParams<'_>,
+        ep: Self::ExtractParams<'_, '_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> UserSecretKey {
@@ -123,7 +123,7 @@ impl IBKEM for CGWFO {
     /// # Errors
     ///
     /// This function returns an [`Error`] when an illegitimate ciphertext is encountered (explicit rejection).
-    fn decaps(dp: Self::DecapsParams<'_>, c: &CipherText) -> Result<SharedSecret, Error> {
+    fn decaps(dp: Self::DecapsParams<'_, '_>, c: &CipherText) -> Result<SharedSecret, Error> {
         let (pk, usk) = dp;
         let m = CGW::decrypt(&usk.usk, c);
 
@@ -153,5 +153,7 @@ mod tests {
     use super::*;
 
     test_kem!(CGWFO, { pk, sk, usk }, { &sk, (&pk, &usk) });
+
+    #[cfg(feature = "mkem")]
     test_multi_kem!(CGWFO, { pk, sk, usks, i }, { &sk, (&pk, &usks[i]) });
 }

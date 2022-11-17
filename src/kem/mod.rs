@@ -79,10 +79,10 @@ pub trait IBKEM: Clone {
     type Id: Copy + Default;
 
     /// Scheme-specific inputs to the extraction (other than the identity).
-    type ExtractParams<'a>;
+    type ExtractParams<'pk, 'sk>;
 
     /// Scheme-specific inputs to the decapsulation (other than the ciphertext).
-    type DecapsParams<'a>;
+    type DecapsParams<'pk, 'usk>;
 
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;
@@ -103,7 +103,7 @@ pub trait IBKEM: Clone {
     ///
     /// Optionally requires the system's public key, see [`Self::ExtractParams`].
     fn extract_usk<R: RngCore + CryptoRng>(
-        ep: Self::ExtractParams<'_>,
+        ep: Self::ExtractParams<'_, '_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> Self::Usk;
@@ -121,5 +121,5 @@ pub trait IBKEM: Clone {
     ///
     /// For some schemes this operation can fail explicitly, e.g., when
     /// an illegitimate ciphertext is used as input.
-    fn decaps(dp: Self::DecapsParams<'_>, ct: &Self::Ct) -> Result<SharedSecret, Error>;
+    fn decaps(dp: Self::DecapsParams<'_, '_>, ct: &Self::Ct) -> Result<SharedSecret, Error>;
 }

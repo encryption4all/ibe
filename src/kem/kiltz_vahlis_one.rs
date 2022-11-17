@@ -86,7 +86,7 @@ impl IBKEM for KV1 {
     type Ct = CipherText;
     type Id = Identity;
 
-    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
+    type ExtractParams<'a, 'b> = (&'a Self::Pk, &'b Self::Sk);
     type DecapsParams<'a> = &'a Self::Usk;
 
     const PK_BYTES: usize = PK_BYTES;
