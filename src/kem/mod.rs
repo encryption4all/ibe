@@ -64,13 +64,13 @@ pub trait IBKEM: Clone {
     const IDENTIFIER: &'static str;
 
     /// Master public key (Mpk).
-    type Pk: Compress + 'static;
+    type Pk: Compress;
 
     /// Master secret key (Msk).
-    type Sk: Compress + 'static;
+    type Sk: Compress;
 
     /// User secret key (Usk).
-    type Usk: Compress + 'static;
+    type Usk: Compress;
 
     /// Ciphertext (Ct).
     type Ct: Compress + Default;
