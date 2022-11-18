@@ -79,7 +79,7 @@ pub trait IBKEM: Clone {
     type Id: Copy + Default;
 
     /// Scheme-specific inputs to the extraction (other than the identity).
-    type ExtractParams<'pk, 'sk>;
+    type ExtractParams<'kp>;
 
     /// Scheme-specific inputs to the decapsulation (other than the ciphertext).
     type DecapsParams<'pk, 'usk>;
@@ -103,7 +103,7 @@ pub trait IBKEM: Clone {
     ///
     /// Optionally requires the system's public key, see [`Self::ExtractParams`].
     fn extract_usk<R: RngCore + CryptoRng>(
-        ep: Self::ExtractParams<'_, '_>,
+        ep: Self::ExtractParams<'_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> Self::Usk;

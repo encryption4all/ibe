@@ -96,8 +96,8 @@ impl IBE for BoyenWaters {
     type Msg = Msg;
     type Id = Identity;
 
-    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
-    type DecryptParams<'a> = &'a Self::Usk;
+    type ExtractParams<'kp> = (&'kp Self::Pk, &'kp Self::Sk);
+    type DecryptParams<'pk, 'usk> = &'usk Self::Usk;
 
     type RngBytes = [u8; 192];
 
@@ -203,7 +203,7 @@ impl IBE for BoyenWaters {
     }
 
     /// Decrypt ciphertext to a SharedSecret using a user secret key.
-    fn decrypt(usk: Self::DecryptParams<'_>, ct: &CipherText) -> Msg {
+    fn decrypt(usk: Self::DecryptParams<'_, '_>, ct: &CipherText) -> Msg {
         ct.cprime
             + multi_miller_loop(&[
                 (&ct.c[0], &G2Prepared::from(usk.d[0])),

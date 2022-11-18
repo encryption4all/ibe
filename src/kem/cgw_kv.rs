@@ -87,8 +87,8 @@ impl IBKEM for CGWKV {
     type Ct = CipherText;
     type Id = Identity;
 
-    type ExtractParams<'a> = &'a Self::Sk;
-    type DecapsParams<'a> = &'a Self::Usk;
+    type ExtractParams<'pk> = &'pk Self::Sk;
+    type DecapsParams<'pk, 'usk> = &'pk Self::Usk;
 
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
@@ -240,7 +240,7 @@ impl IBKEM for CGWKV {
     /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
-    fn decaps(usk: Self::DecapsParams<'_>, ct: &Self::Ct) -> Result<SharedSecret, Error> {
+    fn decaps(usk: Self::DecapsParams<'_, '_>, ct: &Self::Ct) -> Result<SharedSecret, Error> {
         let yprime = rpc(&ct.k, &[ct.c0[0], ct.c0[1]]);
         let tmp1: G2Affine = (usk.d1[0] + (usk.d2[0] * yprime)).into();
         let tmp2: G2Affine = (usk.d1[1] + (usk.d2[1] * yprime)).into();
@@ -510,5 +510,7 @@ mod tests {
     use super::*;
 
     test_kem!(CGWKV, { pk, sk, usk }, { &sk, &usk });
+
+    #[cfg(feature = "mkem")]
     test_multi_kem!(CGWKV, { pk, sk, usks, i }, { &sk, &usks[i] });
 }

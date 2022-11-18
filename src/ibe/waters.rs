@@ -103,8 +103,8 @@ impl IBE for Waters {
     type Id = Identity;
     type RngBytes = [u8; 64];
 
-    type ExtractParams<'a> = (&'a Self::Pk, &'a Self::Sk);
-    type DecryptParams<'a> = &'a Self::Usk;
+    type ExtractParams<'kp> = (&'kp Self::Pk, &'kp Self::Sk);
+    type DecryptParams<'pk, 'usk> = &'usk Self::Usk;
 
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
@@ -171,7 +171,7 @@ impl IBE for Waters {
     }
 
     /// Decrypt ciphertext to a message using a user secret key.
-    fn decrypt(usk: Self::DecryptParams<'_>, c: &CipherText) -> Msg {
+    fn decrypt(usk: Self::DecryptParams<'_, '_>, c: &CipherText) -> Msg {
         c.c1 + multi_miller_loop(&[
             (&c.c3, &G2Prepared::from(usk.d2)),
             (&-usk.d1, &G2Prepared::from(c.c2)),

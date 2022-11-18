@@ -73,7 +73,7 @@ impl IBKEM for CGWFO {
     type Ct = CipherText;
     type Id = Identity;
 
-    type ExtractParams<'pk, 'sk> = &'sk Self::Sk;
+    type ExtractParams<'kp> = &'kp Self::Sk;
     type DecapsParams<'pk, 'usk> = (&'pk Self::Pk, &'usk Self::Usk);
 
     const PK_BYTES: usize = PK_BYTES;
@@ -86,7 +86,7 @@ impl IBKEM for CGWFO {
     }
 
     fn extract_usk<R: RngCore + CryptoRng>(
-        ep: Self::ExtractParams<'_, '_>,
+        ep: Self::ExtractParams<'_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> UserSecretKey {
@@ -114,11 +114,6 @@ impl IBKEM for CGWFO {
     }
 
     /// Decapsulate a shared secret from the ciphertext.
-    ///
-    /// # Panics
-    ///
-    /// This scheme **does** requires the master public key due to usage the Fujisaki-Okamoto transform.
-    /// This function panics if no master public key is provided.
     ///
     /// # Errors
     ///

@@ -86,8 +86,8 @@ impl IBKEM for KV1 {
     type Ct = CipherText;
     type Id = Identity;
 
-    type ExtractParams<'a, 'b> = (&'a Self::Pk, &'b Self::Sk);
-    type DecapsParams<'a> = &'a Self::Usk;
+    type ExtractParams<'kp> = (&'kp Self::Pk, &'kp Self::Sk);
+    type DecapsParams<'pk, 'usk> = &'usk Self::Usk;
 
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
@@ -117,7 +117,6 @@ impl IBKEM for KV1 {
     /// Extract a user secret key for a given identity.
     ///
     /// This scheme **does** require the master public key to perform this operation.
-    /// If no master public key is given, this function panics.
     fn extract_usk<R: RngCore + CryptoRng>(
         ep: Self::ExtractParams<'_>,
         v: &Self::Id,
@@ -153,7 +152,7 @@ impl IBKEM for KV1 {
     /// # Errors
     ///
     /// This operation always implicitly rejects ciphertexts and therefore never errors.
-    fn decaps(usk: Self::DecapsParams<'_>, c: &Self::Ct) -> Result<SharedSecret, Error> {
+    fn decaps(usk: Self::DecapsParams<'_, '_>, c: &Self::Ct) -> Result<SharedSecret, Error> {
         let t = hash_g2_to_scalar(c.c1);
         let x: G1Affine = (usk.d1 + (usk.d3 * t)).into();
 
@@ -340,5 +339,7 @@ mod tests {
     use super::*;
 
     test_kem!(KV1, { pk, sk, usk }, { (&pk, &sk), &usk });
+
+    #[cfg(feature = "mkem")]
     test_multi_kem!(KV1, { pk, sk, usks, i }, { (&pk, &sk), &usks[i] });
 }

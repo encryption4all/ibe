@@ -58,10 +58,10 @@ pub trait IBE {
     type RngBytes: Sized;
 
     /// Scheme-specific inputs to the extraction (other than the identity).
-    type ExtractParams<'a>;
+    type ExtractParams<'kp>;
 
     /// Scheme-specific inputs to the decryption (other than the ciphertext).
-    type DecryptParams<'a>;
+    type DecryptParams<'pk, 'usk>;
 
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;
@@ -97,5 +97,5 @@ pub trait IBE {
     /// Decrypt a ciphertext using a user secret key to retrieve a message.
     ///
     /// Optionally requires the system's public key.
-    fn decrypt(dp: Self::DecryptParams<'_>, ct: &Self::Ct) -> Self::Msg;
+    fn decrypt(dp: Self::DecryptParams<'_, '_>, ct: &Self::Ct) -> Self::Msg;
 }

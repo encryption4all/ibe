@@ -121,7 +121,7 @@ pub trait MultiRecipient: IBKEM {
     /// In some cases this function requires the master public key, depending on
     /// the underlying IBKEM scheme used (e.g., CGWFO).
     fn multi_decaps(
-        dp: Self::DecapsParams<'_>,
+        dp: Self::DecapsParams<'_, '_>,
         ct: &MultiRecipientCiphertext<Self>,
     ) -> Result<SharedSecret, Error> {
         let mut ss = <Self as IBKEM>::decaps(dp, &ct.ct_i)?;

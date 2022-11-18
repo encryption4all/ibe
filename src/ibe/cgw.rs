@@ -89,8 +89,8 @@ impl IBE for CGW {
     type Id = Identity;
     type RngBytes = [u8; 64];
 
-    type ExtractParams<'a> = &'a Self::Sk;
-    type DecryptParams<'a> = &'a Self::Usk;
+    type ExtractParams<'kp> = &'kp Self::Sk;
+    type DecryptParams<'pk, 'usk> = &'usk Self::Usk;
 
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
@@ -215,7 +215,7 @@ impl IBE for CGW {
     }
 
     /// Derive the same message from the CipherText using a UserSecretKey.
-    fn decrypt(usk: Self::DecryptParams<'_>, ct: &CipherText) -> Msg {
+    fn decrypt(usk: Self::DecryptParams<'_, '_>, ct: &CipherText) -> Msg {
         ct.cprime
             + multi_miller_loop(&[
                 (&ct.c0[0], &G2Prepared::from(usk.d1[0])),
