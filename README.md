@@ -19,4 +19,4 @@ This crate contains the following schemes (in chronological order of publication
 - Does not use the Rust standard library (no-std).
 - The structure of the byte serialisation of the various datastructures is not guaranteed to remain constant between releases of this library.
 - All operations in this library are implemented to run in constant time.
-- The performance of this library is heavily dependant on the arithmetic of the underlying curve, BLS12-381. Any new optimizations to the original library could significantly increase performance of the schemes in this crate. It should therefore be considered to merge these optimizations into this crate as well (via the `irmaseal-curve` crate).
+- The performance of this library is heavily dependent on the arithmetic of the underlying curve, BLS12-381. Any new optimizations to the original library could significantly increase performance of the schemes in this crate. It should therefore be considered to merge these optimizations into this crate as well (via the `irmaseal-curve` crate).
