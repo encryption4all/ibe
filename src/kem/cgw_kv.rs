@@ -1,9 +1,9 @@
 //! IND-ID-CCA2 secure IBKEM Chen, Gay and Wee.
 //!  * From: "[Improved Dual System ABE in Prime-Order Groups via Predicate Encodings](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
 //!
-//! CCA security due to a generalized approach from Kiltz & Vahlis.
-//!  * From: "[CCA2 Secure IBE: Standard Model Efficiency through Authenticated Symmetric Encryption](https://link.springer.com/chapter/10.1007/978-3-540-79263-5_14)"
-//!  * Published in: CT-RSA, 2008
+//! CCA security due to a generalized approach.
+//!  * From: "[Efficient and Generic Transformations for Chosen-Ciphertext Secure Predicate Encryption](https://eprint.iacr.org/2022/1436.pdf)"
+//!  * Pp: 41-43, definition 23.
 
 extern crate alloc;
 use alloc::vec::Vec;
