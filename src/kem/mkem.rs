@@ -1,5 +1,4 @@
 //! This module contains a generic implementation shell around all three KEMs to use in a multi-recipient setting.
-//! This feature requires the `alloc` crate.
 //!
 //! # Example usage:
 //!
