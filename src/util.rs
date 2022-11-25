@@ -1,7 +1,7 @@
-use crate::{Compress, Derive};
+use crate::Compress;
 use group::{ff::Field, Group, UncompressedEncoding};
 use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
-use rand::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, RngCore};
 use subtle::CtOption;
 use tiny_keccak::Hasher;
 
@@ -107,17 +107,9 @@ impl Default for Identity {
     }
 }
 
-impl Derive for Identity {
-    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
-    /// Uses sha3-512 internally.
-    fn derive(b: &[u8]) -> Identity {
-        Identity(sha3_512(b))
-    }
-
-    /// Hash a string slice to a set of Identity parameters.
-    /// Directly converts characters to UTF-8 byte representation.
-    fn derive_str(s: &str) -> Identity {
-        Self::derive(s.as_bytes())
+impl<T: AsRef<[u8]>> From<T> for Identity {
+    fn from(b: T) -> Self {
+        Identity(sha3_512(b.as_ref()))
     }
 }
 

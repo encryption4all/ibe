@@ -3,11 +3,12 @@
 //! References to papers appear in the respective source files.
 //!
 //! This crate contains the following schemes (in chronological order of publication):
-//! * Waters (IND-ID-CPA IBE),
-//! * Boyen-Waters (IND-sID-CPA IBE),
-//! * Waters-Naccache (IND-ID-CPA IBE),
-//! * Kiltz-Vahlis IBE1 (IND-CCA2 IBKEM),
-//! * Chen-Gay-Wee (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM).
+//! * [`Waters`](ibe::waters) (IND-ID-CPA IBE),
+//! * [`Boyen-Waters`](ibe::boyen_waters) (IND-sID-CPA IBE),
+//! * [`Waters-Naccache`](ibe::waters_naccache) (IND-ID-CPA IBE),
+//! * [`Kiltz-Vahlis IBE1`](kem::kiltz_vahlis_one) (IND-CCA2 IBKEM),
+//! * [`Chen-Gay-Wee Fujisaki-Okamoto`](kem::cgw_fo) (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM).
+//! * [`Chen-Gay-Wee Kiltz-Vahlis`](kem::cgw_kv) (IND-ID-CPA IBE, IND-ID-CCA2 IBKEM).
 //!
 //! # Examples
 //!
@@ -16,27 +17,25 @@
 //! feature.
 //!
 //! ```
-//! use ibe::Derive;
 //! use ibe::kem::IBKEM;
 //! use ibe::kem::kiltz_vahlis_one::*;
 //!
-//! const ID: &'static str = "email:w.geraedts@sarif.nl";
 //! let mut rng = rand::thread_rng();
 //!
 //! // Derive an identity (specific to this scheme).
-//! let kid = <KV1 as IBKEM>::Id::derive_str(ID);
+//! let id = <KV1 as IBKEM>::Id::from("Johnny");
 //!
 //! // Generate a public-private-keypair for a trusted third party.
 //! let (pk, sk) = KV1::setup(&mut rng);
 //!
 //! // Extract a private key for an identity / user.
-//! let usk = KV1::extract_usk(Some(&pk), &sk, &kid, &mut rng);
+//! let usk = KV1::extract_usk((&pk, &sk), &id, &mut rng);
 //!
 //! // Generate a random message and encrypt it with the public key and an identity.
-//! let (c, k) = KV1::encaps(&pk, &kid, &mut rng);
+//! let (c, k) = KV1::encaps(&pk, &id, &mut rng);
 //!
 //! // Decrypt the ciphertext of that message with the private key of the user.
-//! let k2 = KV1::decaps(None, &usk, &c).unwrap();
+//! let k2 = KV1::decaps(&usk, &c).unwrap();
 //!
 //! assert_eq!(k, k2);
 //! ```
@@ -51,10 +50,9 @@ use core::fmt::Debug;
 #[cfg(test)]
 extern crate std;
 
-#[cfg(test)]
 #[macro_use]
-#[allow(unused)]
-mod test_macros;
+#[cfg(test)]
+mod macros;
 
 #[allow(unused)]
 mod util;
@@ -78,16 +76,4 @@ pub trait Compress: Debug + Sized + Clone {
 
     /// Decompresses a serialized artifact.
     fn from_bytes(output: &Self::Output) -> subtle::CtOption<Self>;
-}
-
-/// Trait that is used to derive identities for schemes.
-pub trait Derive: Sized {
-    /// Derive an identity for a scheme from a byte slice.
-    fn derive(b: &[u8]) -> Self;
-
-    /// Derive an identity for a schem from a string.
-    /// Internally uses UTF-8 encoding `as_bytes()`.
-    fn derive_str(s: &str) -> Self {
-        Self::derive(s.as_bytes())
-    }
 }

@@ -22,10 +22,10 @@ pub mod cgw_kv;
 pub mod mkem;
 
 use crate::util::*;
-use crate::{Compress, Derive};
+use crate::Compress;
 use core::ops::BitXorAssign;
 use irmaseal_curve::Gt;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 
 /// Size of the shared secret in bytes.
 pub const SS_BYTES: usize = 32;
@@ -76,7 +76,13 @@ pub trait IBKEM: Clone {
     type Ct: Compress + Default;
 
     /// Identity.
-    type Id: Copy + Default + Derive;
+    type Id: Copy + Default;
+
+    /// Scheme-specific inputs to the extraction (other than the identity).
+    type ExtractParams<'kp>;
+
+    /// Scheme-specific inputs to the decapsulation (other than the ciphertext).
+    type DecapsParams<'pk, 'usk>;
 
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;
@@ -91,20 +97,19 @@ pub trait IBKEM: Clone {
     const CT_BYTES: usize;
 
     /// Creates a MSK, MPK pair.
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::Pk, Self::Sk);
 
     /// Extract a user secret key for an identity using the MSK.
     ///
-    /// Optionally requires the system's public key.
-    fn extract_usk<R: Rng + CryptoRng>(
-        pk: Option<&Self::Pk>,
-        sk: &Self::Sk,
+    /// Optionally requires the system's public key, see [`Self::ExtractParams`].
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
         id: &Self::Id,
         rng: &mut R,
     ) -> Self::Usk;
 
     /// Encapsulate a shared secret using the master public key and an identity.
-    fn encaps<R: Rng + CryptoRng>(
+    fn encaps<R: RngCore + CryptoRng>(
         pk: &Self::Pk,
         id: &Self::Id,
         rng: &mut R,
@@ -116,9 +121,5 @@ pub trait IBKEM: Clone {
     ///
     /// For some schemes this operation can fail explicitly, e.g., when
     /// an illegitimate ciphertext is used as input.
-    fn decaps(
-        mpk: Option<&Self::Pk>,
-        usk: &Self::Usk,
-        ct: &Self::Ct,
-    ) -> Result<SharedSecret, Error>;
+    fn decaps(dp: Self::DecapsParams<'_, '_>, ct: &Self::Ct) -> Result<SharedSecret, Error>;
 }

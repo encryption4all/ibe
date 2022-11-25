@@ -3,10 +3,10 @@
 //! * Published in: EUROCRYPT, 2005
 
 use crate::util::*;
-use crate::{ibe::IBE, Compress, Derive};
+use crate::{ibe::IBE, Compress};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 #[allow(unused_imports)]
@@ -73,7 +73,7 @@ pub struct Identity([u8; HASH_BYTE_LEN]);
 pub type Msg = Gt;
 
 /// Encrypted message. Can only be decrypted with an user secret key.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CipherText {
     c1: Gt,
     c2: G2Affine,
@@ -103,6 +103,9 @@ impl IBE for Waters {
     type Id = Identity;
     type RngBytes = [u8; 64];
 
+    type ExtractParams<'kp> = (&'kp Self::Pk, &'kp Self::Sk);
+    type DecryptParams<'pk, 'usk> = &'usk Self::Usk;
+
     const PK_BYTES: usize = PK_BYTES;
     const SK_BYTES: usize = SK_BYTES;
     const USK_BYTES: usize = USK_BYTES;
@@ -110,7 +113,7 @@ impl IBE for Waters {
     const MSG_BYTES: usize = MSG_BYTES;
 
     /// Generate a keypair used by the Private Key Generator (PKG).
-    fn setup<R: Rng + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
+    fn setup<R: RngCore + CryptoRng>(rng: &mut R) -> (PublicKey, SecretKey) {
         let g: G2Affine = rand_g2(rng).into();
 
         let alpha = rand_scalar(rng);
@@ -140,13 +143,12 @@ impl IBE for Waters {
     }
 
     /// Extract an user secret key for a given identity.
-    fn extract_usk<R: Rng + CryptoRng>(
-        opk: Option<&PublicKey>,
-        sk: &SecretKey,
+    fn extract_usk<R: RngCore + CryptoRng>(
+        ep: Self::ExtractParams<'_>,
         v: &Identity,
         rng: &mut R,
     ) -> UserSecretKey {
-        let pk = opk.unwrap();
+        let (pk, sk) = ep;
 
         let r = rand_scalar(rng);
         let ucoll = entangle(pk, v);
@@ -169,20 +171,17 @@ impl IBE for Waters {
     }
 
     /// Decrypt ciphertext to a message using a user secret key.
-    fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
-        let m = c.c1
-            + multi_miller_loop(&[
-                (&c.c3, &G2Prepared::from(usk.d2)),
-                (&-usk.d1, &G2Prepared::from(c.c2)),
-            ])
-            .final_exponentiation();
-
-        m
+    fn decrypt(usk: Self::DecryptParams<'_, '_>, c: &CipherText) -> Msg {
+        c.c1 + multi_miller_loop(&[
+            (&c.c3, &G2Prepared::from(usk.d2)),
+            (&-usk.d1, &G2Prepared::from(c.c2)),
+        ])
+        .final_exponentiation()
     }
 }
 
 impl Parameters {
-    pub fn to_bytes(&self) -> [u8; PARAMETERSIZE] {
+    pub fn to_bytes(self) -> [u8; PARAMETERSIZE] {
         let mut res = [0u8; PARAMETERSIZE];
         for i in 0..CHUNKS {
             *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
@@ -208,7 +207,7 @@ impl ConditionallySelectable for Parameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); CHUNKS];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         Parameters(res)
     }
@@ -238,17 +237,12 @@ impl Default for Parameters {
     }
 }
 
-impl Derive for Identity {
-    /// Hash a byte slice to a set of Identity parameters, which acts as a user public key.
-    /// Uses sha3-256 internally.
-    fn derive(b: &[u8]) -> Identity {
-        Identity(sha3_256(b))
-    }
-
-    /// Hash a string slice to a set of Identity parameters.
-    /// Directly converts characters to UTF-8 byte representation.
-    fn derive_str(s: &str) -> Identity {
-        Self::derive(s.as_bytes())
+impl<B> From<B> for Identity
+where
+    B: AsRef<[u8]>,
+{
+    fn from(b: B) -> Self {
+        Identity(sha3_256(b.as_ref()))
     }
 }
 
@@ -367,5 +361,7 @@ impl Compress for CipherText {
 
 #[cfg(test)]
 mod tests {
-    test_ibe!(Waters);
+    use super::*;
+
+    test_ibe!(Waters, { pk, sk, usk }, { (&pk, &sk), &usk });
 }
