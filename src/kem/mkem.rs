@@ -1,4 +1,6 @@
 //! This module contains a generic implementation shell around all three KEMs to use in a multi-recipient setting.
+//! It leverages an IBKEM + DEM to construct a KEM to hybrid an identical, randomly drawn key under
+//! different identities.
 //!
 //! # Example usage:
 //!
@@ -38,6 +40,9 @@ use core::slice::Iter;
 use rand::{CryptoRng, Rng};
 use subtle::CtOption;
 
+use aes_gcm::aead::{Nonce, Tag};
+use aes_gcm::{AeadInPlace, Aes128Gcm, KeyInit};
+
 #[cfg(feature = "cgwfo")]
 use crate::kem::cgw_fo::CGWFO;
 
@@ -60,10 +65,12 @@ impl SharedSecret {
 /// A multi-recipient ciphertext.
 ///
 /// This is an extension of a scheme's ciphertext.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct MultiRecipientCiphertext<K: IBKEM> {
-    ct_i: K::Ct,
-    ss_i: SharedSecret,
+    ct_asymm: K::Ct,
+    ct_symm: [u8; SS_BYTES],
+    tag: Tag<Aes128Gcm>,
+    nonce: Nonce<Aes128Gcm>,
 }
 
 /// Iterator for multi-recipient ciphertexts.
@@ -85,10 +92,23 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         let id = self.ids.next()?;
 
-        let (ct_i, mut ss_i) = <K as IBKEM>::encaps(self.pk, id, self.rng);
-        ss_i ^= self.ss;
+        let (ct_asymm, kek) = <K as IBKEM>::encaps(self.pk, id, self.rng);
 
-        Some(MultiRecipientCiphertext::<K> { ct_i, ss_i })
+        let aead = Aes128Gcm::new_from_slice(&kek.0[..16]).unwrap();
+        let nonce_bytes = self.rng.gen::<[u8; 12]>();
+        let nonce = Nonce::<Aes128Gcm>::from_slice(&nonce_bytes);
+
+        let mut shared_key = self.ss.0;
+        let tag = aead
+            .encrypt_in_place_detached(nonce, b"", &mut shared_key)
+            .unwrap();
+
+        Some(MultiRecipientCiphertext::<K> {
+            ct_asymm,
+            ct_symm: shared_key,
+            nonce: *nonce,
+            tag,
+        })
     }
 }
 
@@ -123,46 +143,51 @@ pub trait MultiRecipient: IBKEM {
         usk: &Self::Usk,
         ct: &MultiRecipientCiphertext<Self>,
     ) -> Result<SharedSecret, Error> {
-        let mut ss = <Self as IBKEM>::decaps(mpk, usk, &ct.ct_i)?;
-        ss ^= ct.ss_i;
+        let kek = <Self as IBKEM>::decaps(mpk, usk, &ct.ct_asymm)?;
 
-        Ok(ss)
+        let aead = Aes128Gcm::new_from_slice(&kek.0[..16]).unwrap();
+
+        let mut shared_key_encrypted = ct.ct_symm;
+        aead.decrypt_in_place_detached(&ct.nonce, b"", &mut shared_key_encrypted, &ct.tag)
+            .unwrap();
+
+        Ok(SharedSecret(shared_key_encrypted))
     }
 }
 
-macro_rules! impl_mkemct_compress {
-    ($scheme: ident) => {
-        impl Compress for MultiRecipientCiphertext<$scheme> {
-            const OUTPUT_SIZE: usize = $scheme::CT_BYTES + SS_BYTES;
-            type Output = [u8; $scheme::CT_BYTES + SS_BYTES];
-
-            fn to_bytes(&self) -> Self::Output {
-                let mut res = [0u8; Self::OUTPUT_SIZE];
-                res[..$scheme::CT_BYTES].copy_from_slice(&self.ct_i.to_bytes());
-                res[$scheme::CT_BYTES..].copy_from_slice(&self.ss_i.0);
-
-                res
-            }
-
-            fn from_bytes(output: &Self::Output) -> CtOption<Self> {
-                let ct_i = <$scheme as IBKEM>::Ct::from_bytes(
-                    &output[..$scheme::CT_BYTES].try_into().unwrap(),
-                );
-                let mut ss_bytes = [0u8; SS_BYTES];
-                ss_bytes[..].copy_from_slice(&output[$scheme::CT_BYTES..]);
-                let ss_i = SharedSecret(ss_bytes);
-
-                ct_i.map(|ct_i| MultiRecipientCiphertext { ct_i, ss_i })
-            }
-        }
-    };
-}
-
-#[cfg(feature = "cgwkv")]
-impl_mkemct_compress!(CGWKV);
-
-#[cfg(feature = "cgwfo")]
-impl_mkemct_compress!(CGWFO);
-
-#[cfg(feature = "kv1")]
-impl_mkemct_compress!(KV1);
+//macro_rules! impl_mkemct_compress {
+//    ($scheme: ident) => {
+//        impl Compress for MultiRecipientCiphertext<$scheme> {
+//            const OUTPUT_SIZE: usize = $scheme::CT_BYTES + SS_BYTES;
+//            type Output = [u8; $scheme::CT_BYTES + SS_BYTES];
+//
+//            fn to_bytes(&self) -> Self::Output {
+//                let mut res = [0u8; Self::OUTPUT_SIZE];
+//                res[..$scheme::CT_BYTES].copy_from_slice(&self.ct_i.to_bytes());
+//                res[$scheme::CT_BYTES..].copy_from_slice(&self.ss_i.0);
+//
+//                res
+//            }
+//
+//            fn from_bytes(output: &Self::Output) -> CtOption<Self> {
+//                let ct_i = <$scheme as IBKEM>::Ct::from_bytes(
+//                    &output[..$scheme::CT_BYTES].try_into().unwrap(),
+//                );
+//                let mut ss_bytes = [0u8; SS_BYTES];
+//                ss_bytes[..].copy_from_slice(&output[$scheme::CT_BYTES..]);
+//                let ss_i = SharedSecret(ss_bytes);
+//
+//                ct_i.map(|ct_i| MultiRecipientCiphertext { ct_i, ss_i })
+//            }
+//        }
+//    };
+//}
+//
+//#[cfg(feature = "cgwkv")]
+//impl_mkemct_compress!(CGWKV);
+//
+//#[cfg(feature = "cgwfo")]
+//impl_mkemct_compress!(CGWFO);
+//
+//#[cfg(feature = "kv1")]
+//impl_mkemct_compress!(KV1);

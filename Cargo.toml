@@ -24,6 +24,7 @@ irmaseal-curve = { version = "0.1.4", features = [
 byteorder = { version = "1.3", default-features = false }
 subtle = { version = "2.4.1", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
+aes-gcm = { version = "0.10", optional = true }
 
 [dev-dependencies]
 rand = "0.8.4"
@@ -38,7 +39,7 @@ cgwkv = []
 kv1 = []
 waters = []
 waters_naccache = []
-mkem = []
+mkem = ["aes-gcm"]
 
 [lib]
 bench = false
