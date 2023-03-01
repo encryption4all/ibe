@@ -1,6 +1,6 @@
 use crate::{Compress, Derive};
 use group::{ff::Field, Group, UncompressedEncoding};
-use irmaseal_curve::{G1Projective, G2Projective, Gt, Scalar};
+use pg_curve::{G1Projective, G2Projective, Gt, Scalar};
 use rand::{CryptoRng, RngCore};
 use subtle::CtOption;
 use tiny_keccak::Hasher;

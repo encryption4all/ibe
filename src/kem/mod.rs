@@ -24,7 +24,7 @@ pub mod mkem;
 use crate::util::*;
 use crate::{Compress, Derive};
 use core::ops::BitXorAssign;
-use irmaseal_curve::Gt;
+use pg_curve::Gt;
 use rand::{CryptoRng, Rng};
 
 /// Size of the shared secret in bytes.

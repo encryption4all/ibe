@@ -13,7 +13,7 @@ use crate::util::*;
 use crate::Compress;
 use core::convert::TryInto;
 use group::{WnafBase, WnafScalar};
-use irmaseal_curve::{
+use pg_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };

@@ -6,7 +6,7 @@ use crate::kem::{Error, SharedSecret, IBKEM};
 use crate::util::*;
 use crate::Compress;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
+use pg_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
@@ -97,7 +97,7 @@ impl IBKEM for KV1 {
 
         let alpha: G1Affine = rand_g1(rng).into();
         let u: G1Affine = rand_g1(rng).into();
-        let z = irmaseal_curve::pairing(&alpha, &g);
+        let z = pg_curve::pairing(&alpha, &g);
 
         let hzero = G1Affine::default();
         let mut h = HashParameters([G1Affine::default(); N]);

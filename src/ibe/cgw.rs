@@ -12,7 +12,7 @@ use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use core::convert::TryInto;
 use group::{WnafBase, WnafScalar};
-use irmaseal_curve::{
+use pg_curve::{
     multi_miller_loop, pairing, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt,
     Scalar,
 };

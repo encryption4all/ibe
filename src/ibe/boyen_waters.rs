@@ -10,14 +10,14 @@ use core::convert::TryInto;
 use crate::util::*;
 use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
-use irmaseal_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
+use pg_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
 use rand::{CryptoRng, Rng};
 use subtle::CtOption;
 
 #[allow(unused_imports)]
 use group::Group;
 
-pub use irmaseal_curve::Gt;
+pub use pg_curve::Gt;
 
 /// Size of the compressed message in bytes.
 pub const MSG_BYTES: usize = GT_BYTES;

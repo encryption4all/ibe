@@ -66,7 +66,7 @@ impl SharedSecret {
     }
 }
 
-/// A multi-recipient ciphertext.
+/// A multi-user ciphertext.
 #[derive(Debug, Clone)]
 pub struct Ciphertext<K: IBKEM> {
     ct_asymm: K::Ct,
@@ -75,7 +75,7 @@ pub struct Ciphertext<K: IBKEM> {
     nonce: Nonce<Aes128Gcm>,
 }
 
-/// Iterator that produces multi-recipient ciphertexts.
+/// Iterator that produces multi-user ciphertexts.
 #[derive(Debug)]
 pub struct Ciphertexts<'a, K: IBKEM, R> {
     ss: SharedSecret,
@@ -115,7 +115,7 @@ where
     }
 }
 
-/// Trait that captures multi-recipient encapsulation/decapsulation.
+/// Trait that captures multi-user encapsulation/decapsulation.
 pub trait MultiRecipient: IBKEM {
     /// Encapsulates a single shared secret under multiple identities.
     fn multi_encaps<'a, R: Rng + CryptoRng>(

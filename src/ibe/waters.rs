@@ -5,7 +5,7 @@
 use crate::util::*;
 use crate::{ibe::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use irmaseal_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
+use pg_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
@@ -161,7 +161,7 @@ impl IBE for Waters {
         let t = Scalar::from_bytes_wide(rng_bytes);
 
         let c3coll = entangle(pk, v);
-        let c1 = irmaseal_curve::pairing(&pk.g1, &pk.g2) * t + m;
+        let c1 = pg_curve::pairing(&pk.g1, &pk.g2) * t + m;
         let c2 = (pk.g * t).into();
         let c3 = (c3coll * t).into();
 
