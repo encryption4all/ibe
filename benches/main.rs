@@ -71,7 +71,7 @@ macro_rules! bench_multi_kem {
         paste! {
             fn [<bench_multi_kem_ $scheme>](criterion: &mut Criterion) {
                 use ibe::kem::$scheme::*;
-                use ibe::kem::mkem::{MultiRecipientCiphertext, MultiRecipient};
+                use ibe::kem::mkem::{Ciphertext, MultiRecipient};
                 use ibe::{kem::IBKEM, Derive};
 
                 let mut rng = rand::thread_rng();
@@ -92,7 +92,7 @@ macro_rules! bench_multi_kem {
                                 black_box(&kids),
                                 &mut rng
                             );
-                            let _: Vec<MultiRecipientCiphertext<$struct>> = iter.collect();
+                            let _: Vec<Ciphertext<$struct>> = iter.collect();
                         })
                     },
                 );

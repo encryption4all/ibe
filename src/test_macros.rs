@@ -62,7 +62,7 @@ macro_rules! test_multi_kem {
     ($name: ident) => {
         #[test]
         fn eq_multi_encaps_decaps() {
-            use crate::kem::mkem::MultiRecipient;
+            use crate::kem::mkem::{Ciphertext, MultiRecipient};
 
             let mut rng = rand::thread_rng();
 
@@ -84,7 +84,10 @@ macro_rules! test_multi_kem {
             let (cts, k) = $name::multi_encaps(&pk, &kid, &mut rng);
 
             for (i, ct) in cts.enumerate() {
-                let k_i = $name::multi_decaps(Some(&pk), &usks[i], &ct).unwrap();
+                let compressed = ct.to_bytes();
+                let decompressed = Ciphertext::<$name>::from_bytes(&compressed).unwrap();
+
+                let k_i = $name::multi_decaps(Some(&pk), &usks[i], &decompressed).unwrap();
                 assert_eq!(k, k_i);
             }
 
