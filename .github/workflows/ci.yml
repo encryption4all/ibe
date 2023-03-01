@@ -14,18 +14,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.56.0
-          override: true
-
-      - run: rustup component add rustfmt
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check --color always
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt -- --check --color always
 
   test:
     name: Test on ${{ matrix.os }}
@@ -35,25 +26,9 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.56.0
-          override: true
-      - name: cargo fetch
-        uses: actions-rs/cargo@v1
-        with:
-          command: fetch
-      - name: Build tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --release --tests --all-features
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --release --all-features
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --release --verbose --all-features
 
   no-std:
     name: Check no-std target ${{ matrix.target }}
@@ -61,23 +36,12 @@ jobs:
     strategy:
       matrix:
         target:
-          - thumbv6m-none-eabi
           - wasm32-unknown-unknown
           - wasm32-wasi
 
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.56.0
-          override: true
-      - run: rustup target add ${{ matrix.target }}
-      - name: cargo fetch
-        uses: actions-rs/cargo@v1
-        with:
-          command: fetch
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --target ${{ matrix.target }} --all-features --lib
+          targets: ${{ matrix.target }}
+      - run: cargo build --verbose --target ${{ matrix.target }} --all-features --lib

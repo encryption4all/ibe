@@ -26,6 +26,9 @@ subtle = { version = "2.4.1", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
 aes-gcm = { version = "0.10", optional = true }
 
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
 [dev-dependencies]
 rand = "0.8.4"
 criterion = "0.3.5"
