@@ -1,6 +1,6 @@
 # CHANGELOG.md
 
-## Unreleased
+## 0.3.0
 
 ### Changed
 
