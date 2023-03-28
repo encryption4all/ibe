@@ -24,6 +24,7 @@ pg-curve = { version = "0.2.0", features = [
 subtle = { version = "2.4.1", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
 aes-gcm = { version = "0.10", optional = true }
+rayon = { version = "1.7.0", optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
@@ -42,6 +43,7 @@ kv1 = []
 waters = []
 waters_naccache = []
 mkem = ["aes-gcm"]
+rayon = ["dep:rayon"]
 
 [lib]
 bench = false
@@ -57,7 +59,8 @@ required-features = [
   "boyen_waters",
   "waters",
   "waters_naccache",
-  "mkem"
+  "mkem",
+  "rayon"
 ]
 
 [package.metadata.docs.rs]

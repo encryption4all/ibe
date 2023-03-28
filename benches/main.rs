@@ -74,16 +74,38 @@ macro_rules! bench_multi_kem {
                 use ibe::kem::mkem::{Ciphertext, MultiRecipient};
                 use ibe::{kem::IBKEM, Derive};
 
+                #[cfg(feature = "rayon")]
+                use rayon::iter::ParallelIterator;
+
                 let mut rng = rand::thread_rng();
 
                 let id = "email:w.geraedts@sarif.nl".as_bytes();
                 let kid = <$struct as IBKEM>::Id::derive(id);
 
                 let (pk, _sk) = $struct::setup(&mut rng);
-                let kids = [kid; 10];
+                let kids = [kid; 100];
 
-                criterion.bench_function(
-                    &format!("kem_{} multi-encaps x10", stringify!($scheme)).to_string(),
+                let mut group = criterion.benchmark_group("multi-kem");
+                group.sample_size(10);
+
+                #[cfg(feature = "rayon")]
+                group.bench_function(
+                    &format!("kem_{} multi-encaps x100 (rayon)", stringify!($scheme)).to_string(),
+                    move |b| {
+                        let mut rng = rand::thread_rng();
+                        b.iter(|| {
+                            let (iter, _) = $struct::multi_encaps_par(
+                                black_box(&pk),
+                                black_box(&kids),
+                                &mut rng
+                            );
+                            let _: Vec<Ciphertext<$struct>> = iter.collect();
+                        })
+                    },
+                );
+
+                group.bench_function(
+                    &format!("kem_{} multi-encaps x100", stringify!($scheme)).to_string(),
                     move |b| {
                         let mut rng = rand::thread_rng();
                         b.iter(|| {
@@ -96,7 +118,9 @@ macro_rules! bench_multi_kem {
                         })
                     },
                 );
-            }
+
+                group.finish();
+             }
         }
     };
 }

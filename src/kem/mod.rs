@@ -73,10 +73,10 @@ pub trait IBKEM: Clone {
     type Usk: Compress;
 
     /// Ciphertext (Ct).
-    type Ct: Compress + Default;
+    type Ct: Compress + Default + Send;
 
     /// Identity.
-    type Id: Copy + Default + Derive;
+    type Id: Copy + Default + Derive + Send + Sync;
 
     /// Size of the master public key in bytes.
     const PK_BYTES: usize;

@@ -156,6 +156,64 @@ pub trait MultiRecipient: IBKEM {
     }
 }
 
+#[cfg(feature = "rayon")]
+mod rayon_impls {
+    use super::*;
+    use rayon::iter::IntoParallelRefIterator;
+    use rayon::prelude::*;
+
+    macro_rules! impl_rayon_multi_encaps {
+        ($scheme: ident) => {
+            impl $scheme {
+                /// Encapsulates a single shared secret under multiple identities, in parallel.
+                pub fn multi_encaps_par<'a, R: Rng + CryptoRng>(
+                    pk: &'a <$scheme as IBKEM>::Pk,
+                    ids: &'a [<$scheme as IBKEM>::Id],
+                    rng: &mut R,
+                ) -> (
+                    impl IndexedParallelIterator<Item = Ciphertext<$scheme>> + 'a,
+                    SharedSecret,
+                ) {
+                    let ss = SharedSecret::random(rng);
+
+                    let it = ids.par_iter().map_init(
+                        || rand::thread_rng(),
+                        move |mut rng, id| {
+                            let (ct_asymm, kek) = $scheme::encaps(pk, id, &mut rng);
+
+                            let aead = Aes128Gcm::new_from_slice(&kek.0[..KEY_SIZE]).unwrap();
+                            let nonce_bytes = rng.gen::<[u8; NONCE_SIZE]>();
+                            let nonce = Nonce::<Aes128Gcm>::from_slice(&nonce_bytes);
+                            let mut shared_key = ss.0;
+                            let tag = aead
+                                .encrypt_in_place_detached(nonce, b"", &mut shared_key)
+                                .unwrap();
+
+                            Ciphertext::<$scheme> {
+                                ct_asymm,
+                                ct_symm: shared_key,
+                                nonce: *nonce,
+                                tag,
+                            }
+                        },
+                    );
+
+                    (it, ss)
+                }
+            }
+        };
+    }
+
+    #[cfg(feature = "cgwkv")]
+    impl_rayon_multi_encaps!(CGWKV);
+
+    #[cfg(feature = "cgwfo")]
+    impl_rayon_multi_encaps!(CGWFO);
+
+    #[cfg(feature = "kv1")]
+    impl_rayon_multi_encaps!(KV1);
+}
+
 macro_rules! impl_mkemct_compress {
     ($scheme: ident) => {
         impl Compress for Ciphertext<$scheme> {

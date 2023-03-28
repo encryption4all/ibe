@@ -63,6 +63,8 @@ macro_rules! test_multi_kem {
         #[test]
         fn eq_multi_encaps_decaps() {
             use crate::kem::mkem::{Ciphertext, MultiRecipient};
+            use rayon::iter::IndexedParallelIterator;
+            use rayon::prelude::*;
 
             let mut rng = rand::thread_rng();
 
@@ -81,15 +83,15 @@ macro_rules! test_multi_kem {
 
             let usks = [usk1, usk2];
 
-            let (cts, k) = $name::multi_encaps(&pk, &kid, &mut rng);
+            let (cts, k) = $name::multi_encaps_par(&pk, &kid, &mut rng);
 
-            for (i, ct) in cts.enumerate() {
+            cts.enumerate().for_each(|(i, ct)| {
                 let compressed = ct.to_bytes();
                 let decompressed = Ciphertext::<$name>::from_bytes(&compressed).unwrap();
 
                 let k_i = $name::multi_decaps(Some(&pk), &usks[i], &decompressed).unwrap();
                 assert_eq!(k, k_i);
-            }
+            });
 
             assert_ne!(k, SharedSecret([0u8; 32]));
         }
