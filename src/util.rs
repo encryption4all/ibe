@@ -41,10 +41,11 @@ pub fn rand_gt<R: RngCore + CryptoRng>(rng: &mut R) -> Gt {
 }
 
 pub fn bits<'a>(slice: &'a [u8]) -> impl Iterator<Item = subtle::Choice> + 'a {
-    slice
-        .iter()
-        .rev()
-        .flat_map(|byte| (0..8u8).rev().map(move |i| subtle::Choice::from((byte >> i) & 1)))
+    slice.iter().rev().flat_map(|byte| {
+        (0..8u8)
+            .rev()
+            .map(move |i| subtle::Choice::from((byte >> i) & 1))
+    })
 }
 
 #[cfg(test)]
