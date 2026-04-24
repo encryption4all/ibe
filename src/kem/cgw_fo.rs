@@ -30,6 +30,7 @@ pub const USK_BYTES: usize = CPA_USK_BYTES + ID_BYTES;
 /// User secret key. Can be used to decaps the corresponding ciphertext.
 /// Also known as USK_{id}.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct UserSecretKey {
     usk: crate::ibe::cgw::UserSecretKey,
     id: Identity,
