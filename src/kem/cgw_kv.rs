@@ -539,8 +539,16 @@ mod tests {
         ss.zeroize();
 
         assert_ne!(sk.to_bytes(), sk_bytes_before, "SecretKey did not zeroize");
-        assert_ne!(usk.to_bytes(), usk_bytes_before, "UserSecretKey did not zeroize");
+        assert_ne!(
+            usk.to_bytes(),
+            usk_bytes_before,
+            "UserSecretKey did not zeroize"
+        );
         assert_ne!(ss.0, ss_bytes_before, "SharedSecret did not zeroize");
-        assert_eq!(ss.0, [0u8; crate::kem::SS_BYTES], "SharedSecret bytes should be zero");
+        assert_eq!(
+            ss.0,
+            [0u8; crate::kem::SS_BYTES],
+            "SharedSecret bytes should be zero"
+        );
     }
 }
