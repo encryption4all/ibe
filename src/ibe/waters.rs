@@ -170,22 +170,19 @@ impl IBE for Waters {
 
     /// Decrypt ciphertext to a message using a user secret key.
     fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
-        let m = c.c1
-            + multi_miller_loop(&[
-                (&c.c3, &G2Prepared::from(usk.d2)),
-                (&-usk.d1, &G2Prepared::from(c.c2)),
-            ])
-            .final_exponentiation();
-
-        m
+        c.c1 + multi_miller_loop(&[
+            (&c.c3, &G2Prepared::from(usk.d2)),
+            (&-usk.d1, &G2Prepared::from(c.c2)),
+        ])
+        .final_exponentiation()
     }
 }
 
 impl Parameters {
-    pub fn to_bytes(&self) -> [u8; PARAMETERSIZE] {
+    pub fn to_bytes(self) -> [u8; PARAMETERSIZE] {
         let mut res = [0u8; PARAMETERSIZE];
-        for i in 0..CHUNKS {
-            *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
+        for (i, p) in self.0.iter().enumerate() {
+            *array_mut_ref![&mut res, i * 48, 48] = p.to_compressed();
         }
         res
     }
@@ -193,10 +190,10 @@ impl Parameters {
     pub fn from_bytes(bytes: &[u8; PARAMETERSIZE]) -> CtOption<Self> {
         let mut res = [G1Affine::default(); CHUNKS];
         let mut is_some = Choice::from(1u8);
-        for i in 0..CHUNKS {
+        for (i, slot) in res.iter_mut().enumerate() {
             is_some &= G1Affine::from_compressed(array_ref![bytes, i * 48, 48])
                 .map(|s| {
-                    res[i] = s;
+                    *slot = s;
                 })
                 .is_some();
         }
@@ -208,7 +205,7 @@ impl ConditionallySelectable for Parameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); CHUNKS];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         Parameters(res)
     }
@@ -216,11 +213,7 @@ impl ConditionallySelectable for Parameters {
 
 impl Clone for Parameters {
     fn clone(&self) -> Self {
-        let mut res = [G1Affine::default(); CHUNKS];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Parameters(res)
+        *self
     }
 }
 
@@ -254,11 +247,7 @@ impl Derive for Identity {
 
 impl Clone for Identity {
     fn clone(&self) -> Self {
-        let mut res = [u8::default(); HASH_BYTE_LEN];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Identity(res)
+        *self
     }
 }
 

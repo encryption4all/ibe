@@ -175,10 +175,10 @@ impl IBKEM for KV1 {
 }
 
 impl HashParameters {
-    pub fn to_bytes(&self) -> [u8; HASH_PARAMETER_SIZE] {
+    pub fn to_bytes(self) -> [u8; HASH_PARAMETER_SIZE] {
         let mut res = [0u8; HASH_PARAMETER_SIZE];
-        for i in 0..N {
-            *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
+        for (i, p) in self.0.iter().enumerate() {
+            *array_mut_ref![&mut res, i * 48, 48] = p.to_compressed();
         }
         res
     }
@@ -186,11 +186,11 @@ impl HashParameters {
     pub fn from_bytes(bytes: &[u8; HASH_PARAMETER_SIZE]) -> CtOption<Self> {
         let mut res = [G1Affine::default(); N];
         let mut is_some = Choice::from(1u8);
-        for i in 0..N {
+        for (i, slot) in res.iter_mut().enumerate() {
             // See comment in PublicKey::from_bytes on cofactor.
             is_some &= G1Affine::from_compressed_unchecked(array_ref![bytes, i * 48, 48])
                 .map(|s| {
-                    res[i] = s;
+                    *slot = s;
                 })
                 .is_some();
         }
@@ -202,7 +202,7 @@ impl ConditionallySelectable for HashParameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); N];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         HashParameters(res)
     }
@@ -216,11 +216,7 @@ impl PartialEq for HashParameters {
 
 impl Clone for HashParameters {
     fn clone(&self) -> Self {
-        let mut res = [G1Affine::default(); N];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Self(res)
+        *self
     }
 }
 
