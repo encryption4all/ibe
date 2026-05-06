@@ -1,5 +1,5 @@
 //! This module contains a generic API around three KEMs to use in a multi-user setting.
-//! It leverages the underlying IBKEM and a DEM to construct a hybrid encryption scheme, which
+//! It combines the underlying IBKEM with a DEM to form a hybrid encryption scheme, which
 //! is used to encrypt a randomly drawn [`SharedSecret`].
 //!
 //! # Example usage:
