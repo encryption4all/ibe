@@ -1,5 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use paste::paste;
+use std::hint::black_box;
 use std::time::Duration;
 
 macro_rules! bench_kem {
