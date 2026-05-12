@@ -41,11 +41,40 @@ pub fn rand_gt<R: RngCore + CryptoRng>(rng: &mut R) -> Gt {
 }
 
 pub fn bits<'a>(slice: &'a [u8]) -> impl Iterator<Item = subtle::Choice> + 'a {
-    slice
-        .iter()
-        .rev()
-        .zip((0..8).rev())
-        .map(|(x, i)| subtle::Choice::from((*x >> i) & 1))
+    slice.iter().rev().flat_map(|byte| {
+        (0..8u8)
+            .rev()
+            .map(move |i| subtle::Choice::from((byte >> i) & 1))
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bits_produces_eight_bits_per_byte() {
+        let data = [0xABu8; 64];
+        assert_eq!(bits(&data).count(), 64 * 8);
+
+        let data = [0xCDu8; 32];
+        assert_eq!(bits(&data).count(), 32 * 8);
+
+        let data = [0u8; 0];
+        assert_eq!(bits(&data).count(), 0);
+
+        let data = [0xFFu8; 1];
+        let bits_vec: std::vec::Vec<u8> = bits(&data).map(|c| c.unwrap_u8()).collect();
+        assert_eq!(bits_vec, [1, 1, 1, 1, 1, 1, 1, 1]);
+    }
+
+    #[test]
+    fn bits_reflects_exact_bit_pattern() {
+        // 0b1010_0101 = 0xA5, high bit (bit 7) first.
+        let data = [0xA5u8];
+        let bits_vec: std::vec::Vec<u8> = bits(&data).map(|c| c.unwrap_u8()).collect();
+        assert_eq!(bits_vec, [1, 0, 1, 0, 0, 1, 0, 1]);
+    }
 }
 
 pub fn sha3_256(slice: &[u8]) -> [u8; 32] {

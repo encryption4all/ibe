@@ -347,4 +347,26 @@ mod tests {
 
     #[cfg(feature = "mkem")]
     test_multi_kem!(KV1);
+
+    // Two distinct strings whose SHA3-512 digests happen to agree on the 8 bits
+    // that the buggy `bits()` read (one bit each from the last 8 bytes of the
+    // digest). Under the old code, both produce the same curve point — i.e. a
+    // user secret key extracted for one would decrypt ciphertexts for the other.
+    #[test]
+    fn realistic_identities_do_not_collide_in_hash_to_curve() {
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = KV1::setup(&mut rng);
+
+        let id_a = Identity::derive_str("user12@example.com");
+        let id_b = Identity::derive_str("user26@example.com");
+        assert_ne!(id_a.0, id_b.0, "sanity: digests must differ");
+
+        let h_a = G1Affine::from(hash_to_curve(&pk, &id_a));
+        let h_b = G1Affine::from(hash_to_curve(&pk, &id_b));
+
+        assert_ne!(
+            h_a, h_b,
+            "distinct identities must hash to distinct curve points"
+        );
+    }
 }
