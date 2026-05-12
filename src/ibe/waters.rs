@@ -367,5 +367,31 @@ impl Compress for CipherText {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     test_ibe!(Waters);
+
+    // Two distinct strings whose SHA3-256 digests happen to agree on the 8 bits
+    // that the buggy `bits()` read (one bit each from the last 8 bytes of the
+    // digest). Under the old code, both produce the same curve point — i.e. a
+    // user secret key extracted for one would decrypt ciphertexts for the other.
+    #[test]
+    fn realistic_identities_do_not_collide_in_entangle() {
+        use crate::Derive;
+
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = Waters::setup(&mut rng);
+
+        let id_a = Identity::derive_str("user17@example.com");
+        let id_b = Identity::derive_str("user20@example.com");
+        assert_ne!(id_a.0, id_b.0, "sanity: digests must differ");
+
+        let u_a = G1Affine::from(entangle(&pk, &id_a));
+        let u_b = G1Affine::from(entangle(&pk, &id_b));
+
+        assert_ne!(
+            u_a, u_b,
+            "distinct identities must entangle to distinct curve points"
+        );
+    }
 }
