@@ -35,6 +35,7 @@ pub const SS_BYTES: usize = 32;
 /// This shared secret has roughly a 127 bits of security.
 /// This is due to the fact that BLS12-381 targets this security level (optimistically).
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SharedSecret(pub [u8; SS_BYTES]);
 
 /// Uses SHAKE256 to derive a 32-byte shared secret from a target group element.
