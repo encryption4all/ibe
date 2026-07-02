@@ -99,7 +99,7 @@ impl IBKEM for KV1 {
         let u: G1Affine = rand_g1(rng).into();
         let z = pg_curve::pairing(&alpha, &g);
 
-        let hzero = G1Affine::default();
+        let hzero: G1Affine = rand_g1(rng).into();
         let mut h = HashParameters([G1Affine::default(); N]);
         for hi in h.0.iter_mut() {
             *hi = rand_g1(rng).into();
