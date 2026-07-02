@@ -13,27 +13,29 @@ repository = "https://github.com/encryption4all/ibe"
 version = "0.3.0"
 
 [dependencies]
-arrayref = "0.3.6"
+arrayref = "0.3.9"
 group = "0.13"
-rand = { version = "0.8.4", default-features = false }
+rand = { version = "0.8.6", default-features = false }
 pg-curve = { version = "0.2.0", features = [
   "alloc",
   "group",
   "pairings"
 ] }
-subtle = { version = "2.4.1", default-features = false }
+subtle = { version = "2.6.1", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
-aes-gcm = { version = "0.10", optional = true }
+# aes-gcm >= 0.10.3 fixes RUSTSEC-2023-0096 / CVE-2023-42811.
+aes-gcm = { version = "0.10.3", optional = true }
 hkdf = { version = "0.12", default-features = false, optional = true }
 sha2 = { version = "0.10", default-features = false, optional = true }
+zeroize = { version = "1.7", default-features = false, features = ["derive"], optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-rand = "0.8.4"
-criterion = "0.8"
-pastey = "0.2"
+rand = "0.8.6"
+criterion = "0.8.2"
+pastey = "0.2.3"
 
 [features]
 boyen_waters = []
@@ -44,6 +46,7 @@ kv1 = []
 waters = []
 waters_naccache = []
 mkem = ["aes-gcm", "hkdf", "sha2"]
+zeroize = ["dep:zeroize", "pg-curve/zeroize"]
 
 [lib]
 bench = false

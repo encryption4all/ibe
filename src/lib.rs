@@ -40,6 +40,43 @@
 //!
 //! assert_eq!(k, k2);
 //! ```
+//!
+//! # Zeroizing secret material
+//!
+//! When the `zeroize` feature is enabled, the secret types in this crate — the
+//! [`SharedSecret`](crate::kem::SharedSecret) produced by the KEMs, and the
+//! `SecretKey` and `UserSecretKey` of every scheme — derive
+//! [`Zeroize`](https://docs.rs/zeroize), but **not** `ZeroizeOnDrop`.
+//!
+//! These types are `Copy`, and a `Copy` type cannot implement `Drop` (Rust
+//! forbids `Copy` and `Drop` on the same type), so `ZeroizeOnDrop` cannot be
+//! derived for them. As a consequence **secret key material is not wiped from
+//! memory automatically when a value goes out of scope**. If you care about
+//! clearing secrets, you **MUST** call `.zeroize()` explicitly once you are
+//! done with each secret value:
+//!
+//! ```ignore
+//! use ibe::kem::{IBKEM, cgw_kv::CGWKV};
+//! use ibe::Derive;
+//! use zeroize::Zeroize;
+//!
+//! let mut rng = rand::thread_rng();
+//! let id = <CGWKV as IBKEM>::Id::derive_str("alice@example.com");
+//! let (pk, mut sk) = CGWKV::setup(&mut rng);
+//! let mut usk = CGWKV::extract_usk(Some(&pk), &sk, &id, &mut rng);
+//! let (_ct, mut ss) = CGWKV::encaps(&pk, &id, &mut rng);
+//!
+//! // ... use sk / usk / ss ...
+//!
+//! // Wipe the secret material once you are done with it.
+//! sk.zeroize();
+//! usk.zeroize();
+//! ss.zeroize();
+//! ```
+//!
+//! Making these types `!Copy` so that `ZeroizeOnDrop` can be derived (and the
+//! wiping happens automatically) is a breaking API change; it is deferred to a
+//! future major release.
 
 #![no_std]
 #![deny(missing_debug_implementations, rust_2018_idioms, missing_docs)]

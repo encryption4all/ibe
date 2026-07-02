@@ -29,7 +29,15 @@ pub const USK_BYTES: usize = CPA_USK_BYTES + ID_BYTES;
 
 /// User secret key. Can be used to decaps the corresponding ciphertext.
 /// Also known as USK_{id}.
+///
+/// # Zeroization
+///
+/// With the `zeroize` feature enabled this type derives `Zeroize` but **not**
+/// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
+/// you **MUST** call `.zeroize()` explicitly once done. See the
+/// [crate-level docs](crate#zeroizing-secret-material).
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct UserSecretKey {
     usk: crate::ibe::cgw::UserSecretKey,
     id: Identity,
