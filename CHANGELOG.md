@@ -6,6 +6,7 @@
 
 - Changed multi-user key encapsulation, see [this PR](https://github.com/encryption4all/ibe/pull/10).
 - Changed `irmaseal-curve 0.1.4` to `pg-curve 0.2.0` (includes `bls12_381 0.8`).
+- Derive the `mkem` AES-128-GCM key from the KEM shared secret via HKDF-SHA256 with domain separation instead of raw truncation, see [this PR](https://github.com/encryption4all/ibe/pull/47). This is a wire-incompatible change: pre-fix and post-fix peers can no longer decrypt each other's MKEM ciphertexts (session keys are ephemeral, so there is no stored-ciphertext migration).
 
 ## 0.2.3
 

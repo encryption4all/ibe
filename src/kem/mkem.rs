@@ -42,6 +42,8 @@ use subtle::CtOption;
 
 use aes_gcm::aead::{Nonce, Tag};
 use aes_gcm::{AeadInPlace, Aes128Gcm, KeyInit};
+use hkdf::Hkdf;
+use sha2::Sha256;
 
 #[cfg(feature = "cgwfo")]
 use crate::kem::cgw_fo::CGWFO;
@@ -55,6 +57,27 @@ use crate::kem::kiltz_vahlis_one::KV1;
 const TAG_SIZE: usize = 16;
 const NONCE_SIZE: usize = 12;
 const KEY_SIZE: usize = 16;
+
+/// Domain-separation label for the HKDF-SHA256 expansion that turns the KEM
+/// shared secret into the AES-128-GCM key.
+const HKDF_INFO: &[u8] = b"ibe-mkem-aes128gcm";
+
+/// Derives the AES-128-GCM key bytes from a KEM shared secret using
+/// HKDF-SHA256 with domain separation, rather than raw truncation of the
+/// shared secret.
+fn derive_aead_key(kek: &SharedSecret) -> [u8; KEY_SIZE] {
+    let mut aes_key = [0u8; KEY_SIZE];
+    Hkdf::<Sha256>::new(None, &kek.0)
+        .expand(HKDF_INFO, &mut aes_key)
+        .expect("KEY_SIZE is a valid HKDF-SHA256 output length");
+
+    aes_key
+}
+
+/// Builds the AES-128-GCM instance keyed with the HKDF-derived key.
+fn derive_aead(kek: &SharedSecret) -> Aes128Gcm {
+    Aes128Gcm::new_from_slice(&derive_aead_key(kek)).expect("aes_key has the correct length")
+}
 
 impl SharedSecret {
     /// Sample random shared secret.
@@ -96,7 +119,7 @@ where
 
         let (ct_asymm, kek) = <K as IBKEM>::encaps(self.pk, id, self.rng);
 
-        let aead = Aes128Gcm::new_from_slice(&kek.0[..KEY_SIZE]).unwrap();
+        let aead = derive_aead(&kek);
         let nonce_bytes = self.rng.gen::<[u8; NONCE_SIZE]>();
         let nonce = Nonce::<Aes128Gcm>::from_slice(&nonce_bytes);
 
@@ -147,7 +170,7 @@ pub trait MultiRecipient: IBKEM {
         ct: &Ciphertext<Self>,
     ) -> Result<SharedSecret, Error> {
         let kek = <Self as IBKEM>::decaps(mpk, usk, &ct.ct_asymm)?;
-        let aead = Aes128Gcm::new_from_slice(&kek.0[..KEY_SIZE]).unwrap();
+        let aead = derive_aead(&kek);
         let mut shared_key = ct.ct_symm;
         aead.decrypt_in_place_detached(&ct.nonce, b"", &mut shared_key, &ct.tag)
             .map_err(|_e| Error)?;
@@ -206,3 +229,42 @@ impl_mkemct_compress!(CGWFO);
 
 #[cfg(feature = "kv1")]
 impl_mkemct_compress!(KV1);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derive_aead_key_is_deterministic() {
+        let kek = SharedSecret([7u8; SS_BYTES]);
+        assert_eq!(derive_aead_key(&kek), derive_aead_key(&kek));
+    }
+
+    #[test]
+    fn derive_aead_key_differs_from_raw_truncation() {
+        // The vulnerability being fixed: the key used to be `&kek.0[..KEY_SIZE]`.
+        // HKDF-SHA256 must mix the whole secret, so the derived key should not
+        // equal the raw prefix of the shared secret.
+        let kek = SharedSecret([0xABu8; SS_BYTES]);
+        assert_ne!(&derive_aead_key(&kek)[..], &kek.0[..KEY_SIZE]);
+    }
+
+    #[test]
+    fn derive_aead_key_depends_on_full_secret() {
+        // Two secrets sharing the same first KEY_SIZE bytes but differing in the
+        // tail would collide under raw truncation; HKDF must keep them distinct.
+        let mut a = [0u8; SS_BYTES];
+        let mut b = [0u8; SS_BYTES];
+        for (i, (x, y)) in a.iter_mut().zip(b.iter_mut()).enumerate() {
+            *x = i as u8;
+            *y = i as u8;
+        }
+        b[SS_BYTES - 1] ^= 0xFF;
+
+        assert_eq!(&a[..KEY_SIZE], &b[..KEY_SIZE]);
+        assert_ne!(
+            derive_aead_key(&SharedSecret(a)),
+            derive_aead_key(&SharedSecret(b))
+        );
+    }
+}
