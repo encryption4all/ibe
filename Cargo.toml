@@ -24,6 +24,8 @@ pg-curve = { version = "0.2.0", features = [
 subtle = { version = "2.4.1", default-features = false }
 tiny-keccak = { version = "2.0.2", features = ["sha3", "shake"] }
 aes-gcm = { version = "0.10", optional = true }
+hkdf = { version = "0.12", default-features = false, optional = true }
+sha2 = { version = "0.10", default-features = false, optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
@@ -41,7 +43,7 @@ cgwkv = []
 kv1 = []
 waters = []
 waters_naccache = []
-mkem = ["aes-gcm"]
+mkem = ["aes-gcm", "hkdf", "sha2"]
 
 [lib]
 bench = false
