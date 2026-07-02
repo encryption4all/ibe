@@ -90,7 +90,15 @@ pub struct CipherText {
 /// A point on the paired curve that can be encrypted and decrypted.
 ///
 /// You can use the byte representation to derive an AES key.
+///
+/// # Zeroization
+///
+/// With the `zeroize` feature enabled this type derives `Zeroize` but **not**
+/// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
+/// you **MUST** call `.zeroize()` explicitly once done. See the
+/// [crate-level docs](crate#zeroizing-secret-material).
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SharedSecret(Gt);
 
 /// A message that can be encrypted using the PKE.

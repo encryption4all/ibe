@@ -44,7 +44,8 @@
 //! # Zeroizing secret material
 //!
 //! When the `zeroize` feature is enabled, the secret types in this crate — the
-//! [`SharedSecret`](crate::kem::SharedSecret) produced by the KEMs, and the
+//! [`SharedSecret`](crate::kem::SharedSecret) produced by the KEMs (and the
+//! Boyen-Waters IBE `SharedSecret`), and the
 //! `SecretKey` and `UserSecretKey` of every scheme — derive
 //! [`Zeroize`](https://docs.rs/zeroize), but **not** `ZeroizeOnDrop`.
 //!
