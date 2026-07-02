@@ -191,10 +191,10 @@ impl IBKEM for KV1 {
 }
 
 impl HashParameters {
-    pub fn to_bytes(&self) -> [u8; HASH_PARAMETER_SIZE] {
+    pub fn to_bytes(self) -> [u8; HASH_PARAMETER_SIZE] {
         let mut res = [0u8; HASH_PARAMETER_SIZE];
-        for i in 0..N {
-            *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
+        for (i, p) in self.0.iter().enumerate() {
+            *array_mut_ref![&mut res, i * 48, 48] = p.to_compressed();
         }
         res
     }
@@ -202,11 +202,11 @@ impl HashParameters {
     pub fn from_bytes(bytes: &[u8; HASH_PARAMETER_SIZE]) -> CtOption<Self> {
         let mut res = [G1Affine::default(); N];
         let mut is_some = Choice::from(1u8);
-        for i in 0..N {
+        for (i, slot) in res.iter_mut().enumerate() {
             // See comment in PublicKey::from_bytes on cofactor.
             is_some &= G1Affine::from_compressed_unchecked(array_ref![bytes, i * 48, 48])
                 .map(|s| {
-                    res[i] = s;
+                    *slot = s;
                 })
                 .is_some();
         }
@@ -218,7 +218,7 @@ impl ConditionallySelectable for HashParameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); N];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         HashParameters(res)
     }
@@ -232,11 +232,7 @@ impl PartialEq for HashParameters {
 
 impl Clone for HashParameters {
     fn clone(&self) -> Self {
-        let mut res = [G1Affine::default(); N];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Self(res)
+        *self
     }
 }
 
@@ -367,4 +363,26 @@ mod tests {
 
     #[cfg(feature = "mkem")]
     test_multi_kem!(KV1);
+
+    // Two distinct strings whose SHA3-512 digests happen to agree on the 8 bits
+    // that the buggy `bits()` read (one bit each from the last 8 bytes of the
+    // digest). Under the old code, both produce the same curve point — i.e. a
+    // user secret key extracted for one would decrypt ciphertexts for the other.
+    #[test]
+    fn realistic_identities_do_not_collide_in_hash_to_curve() {
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = KV1::setup(&mut rng);
+
+        let id_a = Identity::derive_str("user12@example.com");
+        let id_b = Identity::derive_str("user26@example.com");
+        assert_ne!(id_a.0, id_b.0, "sanity: digests must differ");
+
+        let h_a = G1Affine::from(hash_to_curve(&pk, &id_a));
+        let h_b = G1Affine::from(hash_to_curve(&pk, &id_b));
+
+        assert_ne!(
+            h_a, h_b,
+            "distinct identities must hash to distinct curve points"
+        );
+    }
 }

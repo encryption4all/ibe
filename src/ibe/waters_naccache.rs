@@ -8,7 +8,7 @@ use crate::{ibe::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use pg_curve::{multi_miller_loop, G1Affine, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use rand::{CryptoRng, Rng};
-use subtle::{Choice, ConditionallySelectable, CtOption};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 #[allow(unused_imports)]
 use group::Group;
@@ -65,10 +65,22 @@ pub struct Identity([Scalar; CHUNKS]);
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SecretKey {
     g2prime: G2Affine,
+}
+
+impl ConstantTimeEq for SecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.g2prime.ct_eq(&other.g2prime)
+    }
+}
+
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Points on the paired curves that form the user secret key.
@@ -79,11 +91,23 @@ pub struct SecretKey {
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct UserSecretKey {
     d1: G2Affine,
     d2: G1Affine,
+}
+
+impl ConstantTimeEq for UserSecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.d1.ct_eq(&other.d1) & self.d2.ct_eq(&other.d2)
+    }
+}
+
+impl PartialEq for UserSecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Encrypted message. Can only be decrypted with an user secret key.
@@ -189,14 +213,11 @@ impl IBE for WatersNaccache {
 
     /// Decrypt ciphertext to a message using a user secret key.
     fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
-        let m = c.c1
-            + multi_miller_loop(&[
-                (&usk.d2, &G2Prepared::from(c.c3)),
-                (&-c.c2, &G2Prepared::from(usk.d1)),
-            ])
-            .final_exponentiation();
-
-        m
+        c.c1 + multi_miller_loop(&[
+            (&usk.d2, &G2Prepared::from(c.c3)),
+            (&-c.c2, &G2Prepared::from(usk.d1)),
+        ])
+        .final_exponentiation()
     }
 }
 
@@ -204,17 +225,17 @@ impl ConditionallySelectable for Parameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G2Affine::default(); CHUNKS];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G2Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G2Affine::conditional_select(ai, bi, choice);
         }
         Parameters(res)
     }
 }
 
 impl Parameters {
-    pub fn to_bytes(&self) -> [u8; PARAMETERSIZE] {
+    pub fn to_bytes(self) -> [u8; PARAMETERSIZE] {
         let mut res = [0u8; PARAMETERSIZE];
-        for i in 0..CHUNKS {
-            *array_mut_ref![&mut res, i * 96, 96] = self.0[i].to_compressed();
+        for (i, p) in self.0.iter().enumerate() {
+            *array_mut_ref![&mut res, i * 96, 96] = p.to_compressed();
         }
         res
     }
@@ -222,10 +243,10 @@ impl Parameters {
     pub fn from_bytes(bytes: &[u8; PARAMETERSIZE]) -> CtOption<Self> {
         let mut res = [G2Affine::default(); CHUNKS];
         let mut is_some = Choice::from(1u8);
-        for i in 0..CHUNKS {
+        for (i, slot) in res.iter_mut().enumerate() {
             is_some &= G2Affine::from_compressed(array_ref![bytes, i * 96, 96])
                 .map(|s| {
-                    res[i] = s;
+                    *slot = s;
                 })
                 .is_some();
         }

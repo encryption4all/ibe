@@ -26,6 +26,7 @@ use crate::{Compress, Derive};
 use core::ops::BitXorAssign;
 use pg_curve::Gt;
 use rand::{CryptoRng, Rng};
+use subtle::{Choice, ConstantTimeEq};
 
 /// Size of the shared secret in bytes.
 pub const SS_BYTES: usize = 32;
@@ -41,9 +42,21 @@ pub const SS_BYTES: usize = 32;
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SharedSecret(pub [u8; SS_BYTES]);
+
+impl ConstantTimeEq for SharedSecret {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+impl PartialEq for SharedSecret {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
 
 /// Uses SHAKE256 to derive a 32-byte shared secret from a target group element.
 ///

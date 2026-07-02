@@ -7,7 +7,7 @@ use crate::{ibe::IBE, Compress, Derive};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use pg_curve::{multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, Gt, Scalar};
 use rand::{CryptoRng, Rng};
-use subtle::{Choice, ConditionallySelectable, CtOption};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 #[allow(unused_imports)]
 use group::Group;
@@ -55,10 +55,22 @@ pub struct PublicKey {
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SecretKey {
     g1prime: G1Affine,
+}
+
+impl ConstantTimeEq for SecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.g1prime.ct_eq(&other.g1prime)
+    }
+}
+
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Points on the paired curves that form the user secret key.
@@ -69,11 +81,23 @@ pub struct SecretKey {
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct UserSecretKey {
     d1: G1Affine,
     d2: G2Affine,
+}
+
+impl ConstantTimeEq for UserSecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.d1.ct_eq(&other.d1) & self.d2.ct_eq(&other.d2)
+    }
+}
+
+impl PartialEq for UserSecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Field parameters for an identity.
@@ -186,22 +210,19 @@ impl IBE for Waters {
 
     /// Decrypt ciphertext to a message using a user secret key.
     fn decrypt(usk: &UserSecretKey, c: &CipherText) -> Msg {
-        let m = c.c1
-            + multi_miller_loop(&[
-                (&c.c3, &G2Prepared::from(usk.d2)),
-                (&-usk.d1, &G2Prepared::from(c.c2)),
-            ])
-            .final_exponentiation();
-
-        m
+        c.c1 + multi_miller_loop(&[
+            (&c.c3, &G2Prepared::from(usk.d2)),
+            (&-usk.d1, &G2Prepared::from(c.c2)),
+        ])
+        .final_exponentiation()
     }
 }
 
 impl Parameters {
-    pub fn to_bytes(&self) -> [u8; PARAMETERSIZE] {
+    pub fn to_bytes(self) -> [u8; PARAMETERSIZE] {
         let mut res = [0u8; PARAMETERSIZE];
-        for i in 0..CHUNKS {
-            *array_mut_ref![&mut res, i * 48, 48] = self.0[i].to_compressed();
+        for (i, p) in self.0.iter().enumerate() {
+            *array_mut_ref![&mut res, i * 48, 48] = p.to_compressed();
         }
         res
     }
@@ -209,10 +230,10 @@ impl Parameters {
     pub fn from_bytes(bytes: &[u8; PARAMETERSIZE]) -> CtOption<Self> {
         let mut res = [G1Affine::default(); CHUNKS];
         let mut is_some = Choice::from(1u8);
-        for i in 0..CHUNKS {
+        for (i, slot) in res.iter_mut().enumerate() {
             is_some &= G1Affine::from_compressed(array_ref![bytes, i * 48, 48])
                 .map(|s| {
-                    res[i] = s;
+                    *slot = s;
                 })
                 .is_some();
         }
@@ -224,7 +245,7 @@ impl ConditionallySelectable for Parameters {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut res = [G1Affine::default(); CHUNKS];
         for (i, (ai, bi)) in a.0.iter().zip(b.0.iter()).enumerate() {
-            res[i] = G1Affine::conditional_select(&ai, &bi, choice);
+            res[i] = G1Affine::conditional_select(ai, bi, choice);
         }
         Parameters(res)
     }
@@ -232,11 +253,7 @@ impl ConditionallySelectable for Parameters {
 
 impl Clone for Parameters {
     fn clone(&self) -> Self {
-        let mut res = [G1Affine::default(); CHUNKS];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Parameters(res)
+        *self
     }
 }
 
@@ -270,11 +287,7 @@ impl Derive for Identity {
 
 impl Clone for Identity {
     fn clone(&self) -> Self {
-        let mut res = [u8::default(); HASH_BYTE_LEN];
-        for (src, dst) in self.0.iter().zip(res.as_mut().iter_mut()) {
-            *dst = *src;
-        }
-        Identity(res)
+        *self
     }
 }
 
@@ -383,5 +396,31 @@ impl Compress for CipherText {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     test_ibe!(Waters);
+
+    // Two distinct strings whose SHA3-256 digests happen to agree on the 8 bits
+    // that the buggy `bits()` read (one bit each from the last 8 bytes of the
+    // digest). Under the old code, both produce the same curve point — i.e. a
+    // user secret key extracted for one would decrypt ciphertexts for the other.
+    #[test]
+    fn realistic_identities_do_not_collide_in_entangle() {
+        use crate::Derive;
+
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = Waters::setup(&mut rng);
+
+        let id_a = Identity::derive_str("user17@example.com");
+        let id_b = Identity::derive_str("user20@example.com");
+        assert_ne!(id_a.0, id_b.0, "sanity: digests must differ");
+
+        let u_a = G1Affine::from(entangle(&pk, &id_a));
+        let u_b = G1Affine::from(entangle(&pk, &id_b));
+
+        assert_ne!(
+            u_a, u_b,
+            "distinct identities must entangle to distinct curve points"
+        );
+    }
 }

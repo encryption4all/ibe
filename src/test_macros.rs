@@ -98,6 +98,7 @@ macro_rules! test_multi_kem {
 
 macro_rules! test_ibe {
     ($name: ident) => {
+        #[allow(unused_imports)]
         use super::*;
         use crate::Derive;
 

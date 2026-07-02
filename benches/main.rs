@@ -1,5 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use paste::paste;
+use criterion::{criterion_group, criterion_main, Criterion};
+use pastey::paste;
+use std::hint::black_box;
 use std::time::Duration;
 
 macro_rules! bench_kem {
@@ -16,12 +17,6 @@ macro_rules! bench_kem {
 
                 let (pk, sk) = $struct::setup(&mut rng);
                 let usk = $struct::extract_usk(Some(&pk), &sk, &kid, &mut rng);
-
-//                let ppk = pk.to_bytes();
-//                criterion.bench_function(
-//                    &format!("kem_{} unpack_pk", stringify!($scheme)).to_string(),
-//                    |b| b.iter(|| PublicKey::from_bytes(&ppk)),
-//                );
 
                 let (c, _k) = $struct::encaps(&pk, &kid, &mut rng);
 

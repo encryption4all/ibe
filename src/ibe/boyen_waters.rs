@@ -12,7 +12,7 @@ use crate::{ibe::IBE, Compress};
 use arrayref::{array_refs, mut_array_refs};
 use pg_curve::{multi_miller_loop, pairing, G1Affine, G2Affine, G2Prepared, Scalar};
 use rand::{CryptoRng, Rng};
-use subtle::CtOption;
+use subtle::{Choice, ConstantTimeEq, CtOption};
 
 #[allow(unused_imports)]
 use group::Group;
@@ -56,7 +56,7 @@ pub struct PublicKey {
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SecretKey {
     alpha: Scalar,
@@ -64,6 +64,22 @@ pub struct SecretKey {
     t2: Scalar,
     t3: Scalar,
     t4: Scalar,
+}
+
+impl ConstantTimeEq for SecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.alpha.ct_eq(&other.alpha)
+            & self.t1.ct_eq(&other.t1)
+            & self.t2.ct_eq(&other.t2)
+            & self.t3.ct_eq(&other.t3)
+            & self.t4.ct_eq(&other.t4)
+    }
+}
+
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Points on the paired curves that form the user secret key.
@@ -74,10 +90,22 @@ pub struct SecretKey {
 /// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
 /// you **MUST** call `.zeroize()` explicitly once done. See the
 /// [crate-level docs](crate#zeroizing-secret-material).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct UserSecretKey {
     d: [G2Affine; 5],
+}
+
+impl ConstantTimeEq for UserSecretKey {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.d[..].ct_eq(&other.d[..])
+    }
+}
+
+impl PartialEq for UserSecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 /// Encrypted message. Can only be decrypted with an user secret key.
