@@ -128,6 +128,7 @@ pub fn rpc<Gr: UncompressedEncoding>(k: &[u8; 32], gs: &[Gr]) -> Scalar {
 ///
 /// This identity is obtained by hashing using sha3_512.
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct Identity(pub [u8; ID_BYTES]);
 
 impl Default for Identity {
