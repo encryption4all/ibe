@@ -369,4 +369,20 @@ mod tests {
             "distinct identities must hash to distinct curve points"
         );
     }
+
+    // Regression test for the `hzero` public parameter. It used to be set to
+    // `G1Affine::default()` (the identity point), which does not match the
+    // scheme specification and weakens the security assumptions. `setup` must
+    // now sample it as a uniformly random G1 element.
+    #[test]
+    fn setup_hzero_is_not_the_identity_point() {
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = KV1::setup(&mut rng);
+
+        assert_ne!(
+            pk.hzero,
+            G1Affine::default(),
+            "hzero must be a random G1 element, not the identity point"
+        );
+    }
 }
