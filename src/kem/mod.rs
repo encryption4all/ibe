@@ -34,6 +34,13 @@ pub const SS_BYTES: usize = 32;
 ///
 /// This shared secret has roughly a 127 bits of security.
 /// This is due to the fact that BLS12-381 targets this security level (optimistically).
+///
+/// # Zeroization
+///
+/// With the `zeroize` feature enabled this type derives `Zeroize` but **not**
+/// `ZeroizeOnDrop` (it is `Copy`). Secret material is **not** cleared on drop —
+/// you **MUST** call `.zeroize()` explicitly once done. See the
+/// [crate-level docs](crate#zeroizing-secret-material).
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 pub struct SharedSecret(pub [u8; SS_BYTES]);
