@@ -268,8 +268,9 @@ impl Compress for PublicKey {
         // point is in the correct prime-order subgroup. Public keys may be
         // deserialized from an unauthenticated source before their integrity is
         // verified out-of-band; skipping the subgroup check would let an
-        // adversary embed low-order points (BLS12-381 G1 cofactor is 76) and
-        // mount a small-subgroup attack (GHSA-25fp-2fjj-g84w).
+        // adversary embed a point outside the prime-order subgroup (BLS12-381
+        // has a large, non-trivial cofactor) and mount a small-subgroup attack
+        // (GHSA-25fp-2fjj-g84w).
         let g = G2Affine::from_compressed(g);
         let hzero = G1Affine::from_compressed(hzero);
         let h = HashParameters::from_bytes(h);
