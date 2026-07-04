@@ -20,6 +20,19 @@ pub(crate) const SCALAR_BYTES: usize = 32;
 /// Size of the (default) identity buffer.
 pub(crate) const ID_BYTES: usize = 64;
 
+/// Compressed encoding of a G1 point that is on the curve but **not** in the
+/// prime-order subgroup (it has a non-trivial cofactor component). The encoding
+/// is well-formed, so `from_compressed_unchecked` accepts it, but the checked
+/// `from_compressed` rejects it. Used by the `from_bytes` regression tests that
+/// guard against the small-subgroup issue (GHSA-25fp-2fjj-g84w). Derived from
+/// the non-torsion-free test point in the underlying curve crate.
+#[cfg(test)]
+pub(crate) const NON_SUBGROUP_G1_COMPRESSED: [u8; G1_BYTES] = [
+    0x92, 0x8d, 0x48, 0x62, 0xa4, 0x04, 0x39, 0xa6, 0x7f, 0xd7, 0x6a, 0x9c, 0x75, 0x60, 0xe2, 0xff,
+    0x15, 0x9e, 0x77, 0x0d, 0xcf, 0x68, 0x8f, 0xf7, 0xb2, 0xdd, 0x16, 0x57, 0x92, 0x54, 0x1c, 0x88,
+    0xee, 0x76, 0xc8, 0x2e, 0xb7, 0x7d, 0xd6, 0xe9, 0xe7, 0x2c, 0x89, 0xcb, 0xf1, 0xa5, 0x6a, 0x68,
+];
+
 #[inline(always)]
 pub fn rand_scalar<R: RngCore + CryptoRng>(rng: &mut R) -> Scalar {
     Scalar::random(rng)

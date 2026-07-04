@@ -294,21 +294,22 @@ impl Compress for PublicKey {
             bytes, GT_BYTES, G1_BYTES, G1_BYTES, G2_BYTES, G2_BYTES, G1_BYTES, G1_BYTES, G1_BYTES,
             G1_BYTES
         ];
-        // from_compressed_unchecked doesn't check whether the element has
-        // a cofactor.  To mount an attack using a cofactor an attacker
-        // must be able to manipulate the public parameters.  But then the
-        // attacker can simply use parameters they generated themselves.
-        // Thus checking for a cofactor is superfluous.
+        // Use the checked `from_compressed` variant, which verifies that each
+        // point is in the correct prime-order subgroup. Public keys may be
+        // deserialized from an unauthenticated source before their integrity is
+        // verified out-of-band; skipping the subgroup check would let an
+        // adversary embed low-order points (BLS12-381 G1 cofactor is 76) and
+        // mount a small-subgroup attack (GHSA-25fp-2fjj-g84w).
 
-        let omega = Gt::from_compressed_unchecked(omega);
-        let g0 = G1Affine::from_compressed_unchecked(g0);
-        let g1 = G1Affine::from_compressed_unchecked(g1);
-        let h0 = G2Affine::from_compressed_unchecked(h0);
-        let h1 = G2Affine::from_compressed_unchecked(h1);
-        let v1 = G1Affine::from_compressed_unchecked(v1);
-        let v2 = G1Affine::from_compressed_unchecked(v2);
-        let v3 = G1Affine::from_compressed_unchecked(v3);
-        let v4 = G1Affine::from_compressed_unchecked(v4);
+        let omega = Gt::from_compressed(omega);
+        let g0 = G1Affine::from_compressed(g0);
+        let g1 = G1Affine::from_compressed(g1);
+        let h0 = G2Affine::from_compressed(h0);
+        let h1 = G2Affine::from_compressed(h1);
+        let v1 = G1Affine::from_compressed(v1);
+        let v2 = G1Affine::from_compressed(v2);
+        let v3 = G1Affine::from_compressed(v3);
+        let v4 = G1Affine::from_compressed(v4);
 
         omega.and_then(|omega| {
             g0.and_then(|g0| {
@@ -490,6 +491,18 @@ impl Compress for CipherText {
 #[cfg(test)]
 mod tests {
     test_ibe!(BoyenWaters);
+
+    // Regression test for GHSA-25fp-2fjj-g84w. A public key whose first G1
+    // component (g0) encodes a valid on-curve point that lies outside the
+    // prime-order subgroup must be rejected by the checked `from_bytes`.
+    #[test]
+    fn from_bytes_rejects_non_subgroup_point() {
+        let pk = perform_default().pk;
+        let mut bytes = pk.to_bytes();
+        // Layout: omega (Gt) precedes g0 (first G1 component).
+        bytes[GT_BYTES..GT_BYTES + G1_BYTES].copy_from_slice(&NON_SUBGROUP_G1_COMPRESSED);
+        assert!(bool::from(PublicKey::from_bytes(&bytes).is_none()));
+    }
 
     #[cfg(feature = "zeroize")]
     #[test]
