@@ -1,5 +1,55 @@
 # CHANGELOG.md
 
+## 0.4.0
+
+### Security
+
+- `bits()` in `src/util.rs` now produces all bits from its input slice instead of
+  `min(input_len, 8)`. This restores the full identity space for the **KV1** and
+  **Waters** schemes, which previously collapsed to 2^8 = 256. Fixes
+  [#12](https://github.com/encryption4all/ibe/issues/12) via
+  [#13](https://github.com/encryption4all/ibe/pull/13).
+
+  **Breaking for KV1 and Waters users:** identity derivation for these two schemes
+  now produces different values, so user secret keys (USKs) and ciphertexts issued
+  by a 0.3.0 build are not compatible with 0.4.0. The other schemes
+  (CGWKV, CGWFO, CGW, Boyen-Waters, Waters-Naccache) are unaffected.
+
+### Added
+
+- Realistic-identity collision tests for KV1 and Waters
+  ([#13](https://github.com/encryption4all/ibe/pull/13)).
+- Clippy lint job in CI ([#15](https://github.com/encryption4all/ibe/issues/15),
+  [#22](https://github.com/encryption4all/ibe/pull/22)).
+
+### Changed
+
+- Bumped `criterion` dev-dependency to 0.8
+  ([#26](https://github.com/encryption4all/ibe/pull/26)).
+- Replaced the unmaintained `paste` dev-dependency with `pastey`
+  ([#31](https://github.com/encryption4all/ibe/pull/31), addresses
+  [RUSTSEC-2024-0436](https://rustsec.org/advisories/RUSTSEC-2024-0436)).
+- Standardized README to the org-wide format and added the PostGuard logo
+  ([#11](https://github.com/encryption4all/ibe/pull/11)).
+- Cleaned up clippy warnings throughout the crate
+  ([#16](https://github.com/encryption4all/ibe/issues/16),
+  [#21](https://github.com/encryption4all/ibe/pull/21)).
+- Dropped AI-slop phrasing from README and `mkem` doc comment
+  ([#24](https://github.com/encryption4all/ibe/pull/24)).
+
+### Fixed
+
+- Replaced the deprecated `wasm32-wasi` target with `wasm32-wasip1` in CI.
+- README reference `src/pke` → `src/ibe`
+  ([#20](https://github.com/encryption4all/ibe/pull/20)).
+- Silence unused-import warning in the `test_ibe` macro
+  ([#34](https://github.com/encryption4all/ibe/pull/34)).
+
+### Removed
+
+- Commented-out `unpack_pk` benchmark
+  ([#19](https://github.com/encryption4all/ibe/pull/19)).
+
 ## 0.3.0
 
 ### Changed
