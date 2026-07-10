@@ -203,8 +203,9 @@ impl HashParameters {
         let mut res = [G1Affine::default(); N];
         let mut is_some = Choice::from(1u8);
         for (i, slot) in res.iter_mut().enumerate() {
-            // See comment in PublicKey::from_bytes on cofactor.
-            is_some &= G1Affine::from_compressed_unchecked(array_ref![bytes, i * 48, 48])
+            // See comment in PublicKey::from_bytes: checked variant verifies
+            // subgroup membership (GHSA-25fp-2fjj-g84w).
+            is_some &= G1Affine::from_compressed(array_ref![bytes, i * 48, 48])
                 .map(|s| {
                     *slot = s;
                 })
@@ -263,16 +264,18 @@ impl Compress for PublicKey {
     fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
         let (g, hzero, h, u, z) = array_refs![&bytes, 96, 48, HASH_PARAMETER_SIZE, 48, 288];
 
-        // from_compressed_unchecked doesn't check whether the element has
-        // a cofactor.  To mount an attack using a cofactor an attacker
-        // must be able to manipulate the public parameters.  But then the
-        // attacker can simply use parameters they generated themselves.
-        // Thus checking for a cofactor is superfluous.
-        let g = G2Affine::from_compressed_unchecked(g);
-        let hzero = G1Affine::from_compressed_unchecked(hzero);
+        // Use the checked `from_compressed` variant, which verifies that each
+        // point is in the correct prime-order subgroup. Public keys may be
+        // deserialized from an unauthenticated source before their integrity is
+        // verified out-of-band; skipping the subgroup check would let an
+        // adversary embed a point outside the prime-order subgroup (BLS12-381
+        // has a large, non-trivial cofactor) and mount a small-subgroup attack
+        // (GHSA-25fp-2fjj-g84w).
+        let g = G2Affine::from_compressed(g);
+        let hzero = G1Affine::from_compressed(hzero);
         let h = HashParameters::from_bytes(h);
-        let u = G1Affine::from_compressed_unchecked(u);
-        let z = Gt::from_compressed_unchecked(z);
+        let u = G1Affine::from_compressed(u);
+        let z = Gt::from_compressed(z);
 
         g.and_then(|g| {
             hzero.and_then(|hzero| {
@@ -363,6 +366,19 @@ mod tests {
 
     #[cfg(feature = "mkem")]
     test_multi_kem!(KV1);
+
+    // Regression test for GHSA-25fp-2fjj-g84w. A public key whose `hzero` G1
+    // component encodes a valid on-curve point that lies outside the prime-order
+    // subgroup must be rejected by the checked `from_bytes` deserialization.
+    #[test]
+    fn from_bytes_rejects_non_subgroup_point() {
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = KV1::setup(&mut rng);
+        let mut bytes = pk.to_bytes();
+        // Layout: g (G2, 96 bytes) precedes hzero (first G1 component).
+        bytes[G2_BYTES..G2_BYTES + G1_BYTES].copy_from_slice(&NON_SUBGROUP_G1_COMPRESSED);
+        assert!(bool::from(PublicKey::from_bytes(&bytes).is_none()));
+    }
 
     // Two distinct strings whose SHA3-512 digests happen to agree on the 8 bits
     // that the buggy `bits()` read (one bit each from the last 8 bytes of the

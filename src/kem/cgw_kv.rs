@@ -296,11 +296,13 @@ impl Compress for PublicKey {
     }
 
     fn from_bytes(bytes: &[u8; PK_BYTES]) -> CtOption<Self> {
-        // from_compressed_unchecked doesn't check whether the element has
-        // a cofactor. To mount an attack using a cofactor an attacker
-        // must be able to manipulate the public parameters. But then the
-        // attacker can simply use parameters they generated themselves.
-        // Thus checking for a cofactor is superfluous.
+        // Use the checked `from_compressed` variant, which verifies that each
+        // point is in the correct prime-order subgroup. Public keys may be
+        // deserialized from an unauthenticated source before their integrity is
+        // verified out-of-band; skipping the subgroup check would let an
+        // adversary embed a point outside the prime-order subgroup (BLS12-381
+        // has a large, non-trivial cofactor) and mount a small-subgroup attack
+        // (GHSA-25fp-2fjj-g84w).
         let mut a_1 = [G1Affine::default(); 2];
         let mut w0ta_1 = [G1Affine::default(); 2];
         let mut w1ta_1 = [G1Affine::default(); 2];
@@ -311,23 +313,20 @@ impl Compress for PublicKey {
         for i in 0..2 {
             let x = i * G1_BYTES;
             let y = x + G1_BYTES;
-            is_some &= G1Affine::from_compressed_unchecked(bytes[x..y].try_into().unwrap())
+            is_some &= G1Affine::from_compressed(bytes[x..y].try_into().unwrap())
                 .map(|el| a_1[i] = el)
                 .is_some();
-            is_some &=
-                G1Affine::from_compressed_unchecked(bytes[96 + x..96 + y].try_into().unwrap())
-                    .map(|el| w0ta_1[i] = el)
-                    .is_some();
-            is_some &=
-                G1Affine::from_compressed_unchecked(bytes[192 + x..192 + y].try_into().unwrap())
-                    .map(|el| w1ta_1[i] = el)
-                    .is_some();
-            is_some &=
-                G1Affine::from_compressed_unchecked(bytes[288 + x..288 + y].try_into().unwrap())
-                    .map(|el| wprime_1[i] = el)
-                    .is_some();
+            is_some &= G1Affine::from_compressed(bytes[96 + x..96 + y].try_into().unwrap())
+                .map(|el| w0ta_1[i] = el)
+                .is_some();
+            is_some &= G1Affine::from_compressed(bytes[192 + x..192 + y].try_into().unwrap())
+                .map(|el| w1ta_1[i] = el)
+                .is_some();
+            is_some &= G1Affine::from_compressed(bytes[288 + x..288 + y].try_into().unwrap())
+                .map(|el| wprime_1[i] = el)
+                .is_some();
         }
-        is_some &= Gt::from_compressed_unchecked(bytes[384..672].try_into().unwrap())
+        is_some &= Gt::from_compressed(bytes[384..672].try_into().unwrap())
             .map(|el| kta_t = el)
             .is_some();
 
@@ -532,6 +531,18 @@ mod tests {
 
     #[cfg(feature = "mkem")]
     test_multi_kem!(CGWKV);
+
+    // Regression test for GHSA-25fp-2fjj-g84w. A public key whose first G1
+    // component encodes a valid on-curve point that lies outside the prime-order
+    // subgroup must be rejected by the checked `from_bytes` deserialization.
+    #[test]
+    fn from_bytes_rejects_non_subgroup_point() {
+        let mut rng = rand::thread_rng();
+        let (pk, _sk) = CGWKV::setup(&mut rng);
+        let mut bytes = pk.to_bytes();
+        bytes[..G1_BYTES].copy_from_slice(&NON_SUBGROUP_G1_COMPRESSED);
+        assert!(bool::from(PublicKey::from_bytes(&bytes).is_none()));
+    }
 
     #[cfg(feature = "zeroize")]
     #[test]
