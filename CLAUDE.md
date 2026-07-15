@@ -1,5 +1,4 @@
-
----
+# CLAUDE.md
 
 ## Agent notes (migrated from the dobby memory repo)
 
@@ -21,7 +20,7 @@ uses `ibe` with only the `cgwkv` and `mkem` features enabled.
 From the 2026-07-04 in-depth security audit, all findings below are fixed and
 shipped on main:
 - `bits()` identity collapse (ibe#12/#13): fixed via `flat_map` instead of `zip`
-  in `src/util.rs:43-49`; a test asserts `64*8` bits. Had collapsed the identity
+  in `src/util.rs` (`fn bits`); a test asserts `64*8` bits. Had collapsed the identity
   space of the KV1 and Waters schemes to 2^8 = 256. CGWKV, CGWFO, CGW, and
   Boyen-Waters were never affected, and PostGuard production uses CGWKV so was
   never affected either.
@@ -62,16 +61,20 @@ rand_core-0.10-compatible release; re-verify pg-curve's current `rand_core`
 version before retrying.
 
 ## Release process
-Release-plz automation, migrated from a manual `cargo publish` / `git tag` flow on
-PR #35 (2026-05-17). (This supersedes older "manual release, no automation"
-claims about ibe that still circulate; check for `release-plz.toml` at the repo
-root if this ever seems out of date again.)
+Migrating from a manual `cargo publish` / `git tag` flow to release-plz automation
+(PR #35, 2026-05-17). The `release-plz.toml` config has landed, but the
+`.github/workflows/release-plz.yml` workflow is not yet present — the bot lacks the
+`workflows` permission, so the workflow file still needs manual human application
+before the automation is live. Until then the release flow is still manual.
+(This supersedes older "manual release, no automation" claims about ibe that still
+circulate; check for `release-plz.toml` at the repo root if this ever seems out of
+date again.)
 - `release-plz.toml` at repo root: single-crate config, `git_tag_name =
   "v{{ version }}"`, `[[package]] name = "ibe"`, `publish = true`.
-- `.github/workflows/release-plz.yml`: two jobs (`release-plz-release` and
-  `release-plz-pr`), using `release-plz/action@v0.5`, `dtolnay/rust-toolchain@stable`,
-  `actions/checkout@v6`. Mirrors postguard's delivery workflow minus the
-  multi-package Docker/pg-pkg/pg-ffi/pg-core parsing.
+- `.github/workflows/release-plz.yml` (still to be applied by a human): two jobs
+  (`release-plz-release` and `release-plz-pr`), using `release-plz/action@v0.5`,
+  `dtolnay/rust-toolchain@stable`, `actions/checkout@v6`. Mirrors postguard's
+  delivery workflow minus the multi-package Docker/pg-pkg/pg-ffi/pg-core parsing.
 - Bootstrapped at version 0.4.0, not 0.3.1: the `bits()` fix (PR #13) changes
   identity derivation for KV1 and Waters, a cryptographic behavior change even
   though the public Rust API is unchanged, so the pre-1.0 minor bump is the
