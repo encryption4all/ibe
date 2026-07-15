@@ -17,28 +17,12 @@ uses `ibe` with only the `cgwkv` and `mkem` features enabled.
 - Sibling crate `ibs` has a `zeroize` feature; `ibe` does not yet (open issue #7).
 
 ## Security: already fixed on main, don't re-audit
-From the 2026-07-04 in-depth security audit, all findings below are fixed and
-shipped on main:
-- `bits()` identity collapse (ibe#12/#13): fixed via `flat_map` instead of `zip`
-  in `src/util.rs` (`fn bits`); a test asserts `64*8` bits. Had collapsed the identity
-  space of the KV1 and Waters schemes to 2^8 = 256. CGWKV, CGWFO, CGW, and
-  Boyen-Waters were never affected, and PostGuard production uses CGWKV so was
-  never affected either.
-- mkem raw-truncation into an AES key (GHSA-236p-m8qr-cmjg): fixed via
-  HKDF-SHA256 with domain-separation label `ibe-mkem-aes128gcm` in
-  `derive_aead_key`, `src/kem/mkem.rs:68`.
-- Non-constant-time secret equality (GHSA-whr9-835c-9m5j): fixed; `SharedSecret`
-  now implements `ConstantTimeEq` and `PartialEq` via `ct_eq`.
-- KV1 fixed identity point for `hzero` (GHSA-wvwc-w2wm-hx95): fixed via a random
-  G1 point.
-- Public-key deserialization skipped the subgroup check (GHSA-25fp-2fjj-g84w,
-  issue #50, PR #51): `from_bytes` in `cgw.rs`, `cgw_kv.rs`,
-  `kiltz_vahlis_one.rs` (`PublicKey` and `HashParameters`), and
-  `boyen_waters.rs` used `from_compressed_unchecked`; switched to the checked
-  `from_compressed`. USK/CT `from_bytes` already used the checked variant. When
-  auditing curve-point deserialization in this crate, grep for
-  `from_compressed_unchecked` per-file; don't trust a prior "reviewed, clean"
-  note, since this exact bug hid in that gap.
+An in-depth security audit on 2026-07-04 produced several findings across the
+IBE schemes and the mkem/shared-secret paths; all of them are fixed and shipped
+on main, so don't re-audit them. Per-finding detail (root cause and fix
+location) lives in this repo's private security advisories while they are
+embargoed. Restore the per-finding summary here once those advisories are
+published.
 - Zeroize: an optional `zeroize` feature exists (#14). Types are `Copy`, so it's
   `Zeroize` (not `ZeroizeOnDrop`); callers must explicitly call `.zeroize()`.
   Further hardening tracked in open issue #45.
