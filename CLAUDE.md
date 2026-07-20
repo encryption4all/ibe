@@ -44,6 +44,20 @@ either bump until the BLS curve stack (pg-curve, pairing, group, ff) publishes a
 rand_core-0.10-compatible release; re-verify pg-curve's current `rand_core`
 version before retrying.
 
+As of 2026-07-16 (issue #53) the specific blocker is the `pairing` crate.
+`group 0.14.0` and `ff 0.14.0` are published and stable (both on `rand_core 0.10`),
+but no stable `pairing` release is compatible with them: the only 0.24 is
+`pairing 0.24.0-pre.0`, a pre-release that pins `group =0.14.0-pre.0` (itself on
+`rand_core 0.9`, not 0.10). `pg-curve` is a fork of `bls12_381` and must implement
+the `pairing` traits; `multi_miller_loop`, `pairing`, `Gt`, and `G2Prepared` are
+used throughout ibe's schemes (see `src/ibe/*` and `src/kem/*`), so pg-curve cannot
+advance to `group 0.14` until a stable `pairing 0.24` (or an upstream `bls12_381`
+0.9) exists. Upstream `bls12_381` is likewise still 0.8.0 on `group 0.13`.
+Empirically, bumping pg-curve to `pairing = "0.24"` fails resolution, and forcing
+the `-pre.0` stack only reaches `rand_core 0.9` (and pulls in duplicate `rand_core`
+copies), so it does not satisfy this bump either. Re-check crates.io for a stable
+`pairing 0.24` before retrying.
+
 ## Release process
 Migrating from a manual `cargo publish` / `git tag` flow to release-plz automation
 (PR #35, 2026-05-17). The `release-plz.toml` config has landed, but the
