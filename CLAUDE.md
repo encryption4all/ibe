@@ -30,10 +30,11 @@ than upstream contributors.
 ## Where the operational knowledge is
 
 Not in this file. The schemes, the cargo features, and the build and test
-commands are documented at <https://docs.postguard.eu/repos/ibe>. Anything that
-is a durable check instead belongs in the binding-rule bundle the host narrows
-per repo and lands in the container at `~/dobby-rules.md`, one rule per check. A
-container that learns something durable files a rule; it does not write it here.
+commands are documented at <https://docs.postguard.eu/repos/ibe.html>. Anything
+that is a durable check instead belongs in the binding-rule bundle the host
+narrows per repo and lands in the container at `~/dobby-rules.md`, one rule per
+check. A container that learns something durable files a rule; it does not write
+it here.
 
 This file is orientation, and `tests/claude_md_orientation.rs` holds it to 4,000
 bytes. The corpus it used to be is in git history: 5,185 bytes at `c0e54ed`, the

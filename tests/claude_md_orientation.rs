@@ -1,9 +1,10 @@
 //! `CLAUDE.md` is orientation: what this crate is, the position it takes in
 //! PostGuard, and the sibling repos a change here touches. It was 5,185 bytes of
 //! migrated agent notes before the cut (dobby-code#693); the detail that grew it
-//! is documentation at docs.postguard.eu/repos/ibe or a check in the agent rule
-//! bundle. Both halves of the regression are guarded here, because the file grew
-//! that way once: the byte count, and the headings the corpus arrived under.
+//! is documentation at docs.postguard.eu/repos/ibe.html or a check in the agent
+//! rule bundle. Both halves of the regression are guarded here, because the file
+//! grew that way once: the byte count, and the headings the corpus arrived
+//! under.
 //!
 //! The 4,000-byte cap is not cosmetic. It is the gate that decides whether an
 //! agent working this repo gets its working directory pointed at the clone, so
@@ -28,7 +29,7 @@ fn claude_md_stays_orientation_sized() {
         bytes <= MAX_BYTES,
         "CLAUDE.md is {bytes} B, over the {MAX_BYTES} B cap. This file is ORIENTATION: what the \
          crate is, where it sits in PostGuard, and which sibling repos a change here touches. \
-         Documentation belongs at docs.postguard.eu/repos/ibe; a durable check belongs in the \
+         Documentation belongs at docs.postguard.eu/repos/ibe.html; a durable check belongs in the \
          agent rule bundle, not in this file."
     );
 }
