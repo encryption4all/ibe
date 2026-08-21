@@ -35,7 +35,8 @@ fn claude_md_stays_orientation_sized() {
 
 /// The sections the migrated corpus arrived under. A byte count alone would let
 /// any one of them come back a paragraph at a time.
-const DELETED_SECTIONS: [&str; 5] = [
+const DELETED_SECTIONS: [&str; 6] = [
+    "Agent notes (migrated from the dobby memory repo)",
     "Architecture",
     "Code quality",
     "Release process",
@@ -54,7 +55,7 @@ fn claude_md_has_no_heading_from_the_cut_corpus() {
 
     for section in DELETED_SECTIONS {
         assert!(
-            !headings.contains(&section),
+            !headings.iter().any(|h| h.starts_with(section)),
             "CLAUDE.md has a \"## {section}\" heading again. That section went with the migrated \
              corpus; its content is documentation or an agent rule now, not this file."
         );

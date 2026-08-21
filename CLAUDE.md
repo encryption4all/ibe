@@ -11,10 +11,9 @@ the recipient's identity (an email address) with no key exchange, and the
 recipient proves that identity to a Private Key Generator to obtain a decryption
 key. This crate holds the schemes that make that possible.
 
-`encryption4all` and `privacybydesign` are two GitHub orgs of one company. Yivi
-owns both; the split is historical, from the grant vehicle the PostGuard research
-project used before Yivi bought it. Same maintainers and same review conventions
-on both sides, and we are maintainers here rather than upstream contributors.
+`encryption4all` and `privacybydesign` are two GitHub orgs with the same
+maintainers and the same review conventions, and we are maintainers here rather
+than upstream contributors.
 
 ## What a change here touches
 
